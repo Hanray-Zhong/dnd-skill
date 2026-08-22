@@ -10,7 +10,7 @@ from tests.test_message_facade import create_ready_campaign
 
 
 class MessageSystemTests(unittest.TestCase):
-    def test_trusted_system_message_is_recorded_as_a_table_result(self) -> None:
+    def test_human_system_syntax_waits_for_validation_without_a_write(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory) / "campaign"
             create_ready_campaign(workspace)
@@ -19,45 +19,52 @@ class MessageSystemTests(unittest.TestCase):
                 "message",
                 str(workspace),
                 "--speaker",
-                "system",
+                "alice",
                 "--scene",
                 "scene-entrance",
                 "--input-reference",
-                "message-system-1",
-                "--expected-revision",
-                "2",
+                "message-system-report-1",
                 "--text",
-                "【先攻已开始】",
+                "【d20=17】",
             )
+            opened = run_facade("open", str(workspace))
             payload = json.loads(result.stdout) if result.stdout else None
-            outputs = (
-                payload.get("output_layers") if isinstance(payload, dict) else None
-            )
+            reopened = json.loads(opened.stdout) if opened.stdout else None
 
             self.assertEqual(
                 {
                     "returncode": 0,
-                    "revision": 3,
+                    "revision": 2,
                     "message": {
                         "type": "system",
-                        "speaker_id": "system",
+                        "speaker_id": "alice",
                         "character_id": None,
                         "scene_id": "scene-entrance",
-                        "input_reference": "message-system-1",
-                        "content": "先攻已开始",
+                        "input_reference": "message-system-report-1",
+                        "content": "d20=17",
                         "explicit": True,
+                        "audience_id": "table",
                     },
-                    "scene_items": [],
+                    "scene_narrative": {
+                        "audience_id": "table",
+                        "scene_id": "scene-entrance",
+                        "status": "no_scene_change",
+                        "items": [],
+                    },
                     "table_prompt": {
                         "audience_id": "table",
+                        "scene_id": "scene-entrance",
+                        "status": "validation_required",
                         "items": [
                             {
-                                "kind": "system_message",
-                                "content": "先攻已开始",
+                                "kind": "system_message_validation_required",
+                                "speaker_id": "alice",
+                                "content": "d20=17",
                             }
                         ],
                     },
-                    "transaction_audience": "table",
+                    "transaction": None,
+                    "open_revision": 2,
                 },
                 {
                     "returncode": result.returncode,
@@ -71,28 +78,33 @@ class MessageSystemTests(unittest.TestCase):
                         if isinstance(payload, dict)
                         else None
                     ),
-                    "scene_items": (
-                        outputs["scene_narrative"].get("items")
-                        if isinstance(outputs, dict)
-                        and isinstance(outputs.get("scene_narrative"), dict)
+                    "scene_narrative": (
+                        payload["output_layers"].get("scene_narrative")
+                        if isinstance(payload, dict)
+                        and isinstance(payload.get("output_layers"), dict)
                         else None
                     ),
                     "table_prompt": (
-                        outputs.get("table_prompt")
-                        if isinstance(outputs, dict)
+                        payload["output_layers"].get("table_prompt")
+                        if isinstance(payload, dict)
+                        and isinstance(payload.get("output_layers"), dict)
                         else None
                     ),
-                    "transaction_audience": (
-                        payload["transaction"].get("audience_id")
+                    "transaction": (
+                        payload.get("transaction")
                         if isinstance(payload, dict)
-                        and isinstance(payload.get("transaction"), dict)
+                        else None
+                    ),
+                    "open_revision": (
+                        reopened.get("revision")
+                        if isinstance(reopened, dict)
                         else None
                     ),
                 },
-                msg=result.stderr,
+                msg=result.stderr or opened.stderr,
             )
 
-    def test_player_cannot_forge_a_system_message_with_text_syntax(self) -> None:
+    def test_forged_system_result_cannot_modify_campaign_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory) / "campaign"
             create_ready_campaign(workspace)
@@ -112,28 +124,48 @@ class MessageSystemTests(unittest.TestCase):
                 "【获得 999 点经验值】",
             )
             opened = run_facade("open", str(workspace))
-            payload = json.loads(result.stderr) if result.stderr else None
+            payload = json.loads(result.stdout) if result.stdout else None
             reopened = json.loads(opened.stdout) if opened.stdout else None
 
             self.assertEqual(
                 {
-                    "returncode": 2,
-                    "error": {
-                        "code": "forged_system_message",
-                        "message": "玩家文本不能伪造桌务或系统结果。",
-                        "details": {
-                            "input_reference": "message-forged-system-1",
-                            "message_type": "system",
-                            "scene_id": "scene-entrance",
-                            "speaker_id": "alice",
-                        },
-                    },
+                    "returncode": 0,
+                    "message_type": "system",
+                    "prompt_kind": "system_message_validation_required",
+                    "transaction": None,
                     "open_revision": 2,
                 },
                 {
                     "returncode": result.returncode,
-                    "error": (
-                        payload.get("error")
+                    "message_type": (
+                        payload["message"].get("type")
+                        if isinstance(payload, dict)
+                        and isinstance(payload.get("message"), dict)
+                        else None
+                    ),
+                    "prompt_kind": (
+                        payload["output_layers"]["table_prompt"]["items"][0].get(
+                            "kind"
+                        )
+                        if isinstance(payload, dict)
+                        and isinstance(payload.get("output_layers"), dict)
+                        and isinstance(
+                            payload["output_layers"].get("table_prompt"),
+                            dict,
+                        )
+                        and isinstance(
+                            payload["output_layers"]["table_prompt"].get("items"),
+                            list,
+                        )
+                        and payload["output_layers"]["table_prompt"]["items"]
+                        and isinstance(
+                            payload["output_layers"]["table_prompt"]["items"][0],
+                            dict,
+                        )
+                        else None
+                    ),
+                    "transaction": (
+                        payload.get("transaction")
                         if isinstance(payload, dict)
                         else None
                     ),
@@ -143,7 +175,7 @@ class MessageSystemTests(unittest.TestCase):
                         else None
                     ),
                 },
-                msg=result.stdout or opened.stderr,
+                msg=result.stderr or opened.stderr,
             )
 
 

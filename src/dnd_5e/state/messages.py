@@ -4,6 +4,14 @@ import json
 from pathlib import Path
 import sqlite3
 
+from dnd_5e.messaging.protocol import (
+    AmbiguousAction,
+    MessageType,
+    PERSISTED_MESSAGE_TYPES,
+    character_controls,
+    classify_message,
+    message_audience_id,
+)
 from dnd_5e.state.audiences import read_audiences, validate_audiences
 from dnd_5e.state.encoding import canonical_json
 from dnd_5e.state.types import (
@@ -75,14 +83,27 @@ def record_message(
         or not request.idempotency_key.strip()
         or not request.input_reference.strip()
         or not request.speaker_id.strip()
+        or not request.character_id.strip()
         or not request.scene_id.strip()
-        or not request.message_type.strip()
         or not request.raw_text.strip()
         or not request.content.strip()
-        or not request.source.strip()
+        or request.source != "dnd-5e"
         or not request.audience_id.strip()
+        or not isinstance(request.message_type, MessageType)
+        or request.message_type not in PERSISTED_MESSAGE_TYPES
     ):
         raise InvalidStateRequest("消息状态请求字段无效")
+    try:
+        classification = classify_message(request.raw_text)
+    except AmbiguousAction as error:
+        raise InvalidStateRequest("消息状态请求包含歧义动作") from error
+    if (
+        classification.message_type != request.message_type
+        or classification.content != request.content
+        or request.audience_id
+        != message_audience_id(request.message_type, request.speaker_id)
+    ):
+        raise InvalidStateRequest("消息状态请求与权威分类不一致")
     request_json = canonical_json(
         {
             "audience_id": request.audience_id,
@@ -90,7 +111,7 @@ def record_message(
             "content": request.content,
             "expected_revision": request.expected_revision,
             "input_reference": request.input_reference,
-            "message_type": request.message_type,
+            "message_type": request.message_type.value,
             "operation": "record_message",
             "raw_text": request.raw_text,
             "scene_id": request.scene_id,
@@ -153,6 +174,12 @@ def record_message(
                 or campaign_status != READY_TO_PLAY
             ):
                 raise sqlite3.DatabaseError("campaign 实体尚未进入可开团状态")
+            controls = character_controls(initial_config)
+            if (
+                request.speaker_id not in controls
+                or request.character_id not in controls[request.speaker_id]
+            ):
+                raise InvalidStateRequest("消息发言者或角色控制权无效")
             typed_audiences = read_audiences(connection)
             if request.audience_id not in typed_audiences:
                 raise InvalidStateRequest("消息事件受众不存在")
@@ -173,7 +200,7 @@ def record_message(
                     "character_id": request.character_id,
                     "content": request.content,
                     "input_reference": request.input_reference,
-                    "message_type": request.message_type,
+                    "message_type": request.message_type.value,
                     "raw_text": request.raw_text,
                     "scene_id": request.scene_id,
                     "speaker_id": request.speaker_id,

@@ -4,6 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal, TypeAlias, TypedDict
 
+from dnd_5e.messaging.protocol import MessageType
+
 
 FailurePoint = Literal["after_event", "before_commit", "after_commit"]
 FailureInjector = Callable[[FailurePoint], None]
@@ -70,9 +72,9 @@ class MessageRecordRequest:
     idempotency_key: str
     input_reference: str
     speaker_id: str
-    character_id: str | None
+    character_id: str
     scene_id: str
-    message_type: str
+    message_type: MessageType
     raw_text: str
     content: str
     source: str

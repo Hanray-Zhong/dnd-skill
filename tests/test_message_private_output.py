@@ -48,16 +48,13 @@ class MessagePrivateOutputTests(unittest.TestCase):
                         "input_reference": "message-inner-1",
                         "content": "这扇门后可能有埋伏。",
                         "explicit": True,
+                        "audience_id": "player:alice",
                     },
                     "scene_narrative": {
                         "audience_id": "player:alice",
-                        "items": [
-                            {
-                                "kind": "character_inner",
-                                "character_id": "aria",
-                                "content": "这扇门后可能有埋伏。",
-                            }
-                        ],
+                        "scene_id": "scene-entrance",
+                        "status": "no_scene_change",
+                        "items": [],
                     },
                     "table_prompt_audience": "player:alice",
                     "audit_contains_content": False,

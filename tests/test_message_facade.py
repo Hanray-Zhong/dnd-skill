@@ -63,30 +63,37 @@ class MessageFacadeTests(unittest.TestCase):
                         "input_reference": "message-ooc-1",
                         "content": "先暂停一下",
                         "explicit": False,
+                        "audience_id": "table",
                     },
                     "output_layers": {
                         "scene_narrative": {
                             "audience_id": "table",
+                            "scene_id": "scene-entrance",
+                            "status": "no_scene_change",
                             "items": [],
                         },
                         "table_prompt": {
                             "audience_id": "table",
-                            "items": [
-                                {
-                                    "kind": "ooc_message",
-                                    "speaker_id": "alice",
-                                    "content": "先暂停一下",
-                                }
-                            ],
+                            "scene_id": "scene-entrance",
+                            "status": "none",
+                            "items": [],
                         },
                         "audit_record": {
                             "audience_id": "dm",
+                            "scene_id": "scene-entrance",
                             "items": [
                                 {
+                                    "character_id": None,
+                                    "event_id": None,
                                     "kind": "message_classified",
                                     "input_reference": "message-ooc-1",
                                     "message_type": "ooc",
                                     "persisted": False,
+                                    "revision": 2,
+                                    "scene_id": "scene-entrance",
+                                    "source": "dnd-5e",
+                                    "speaker_id": "alice",
+                                    "state_changes": {},
                                 }
                             ],
                         },
@@ -179,30 +186,42 @@ class MessageFacadeTests(unittest.TestCase):
                         "input_reference": "message-dialogue-1",
                         "content": "我们往北门走。",
                         "explicit": True,
+                        "audience_id": "table",
                     },
                     "output_layers": {
                         "scene_narrative": {
                             "audience_id": "table",
-                            "items": [
-                                {
-                                    "kind": "character_dialogue",
-                                    "character_id": "aria",
-                                    "content": "我们往北门走。",
-                                }
-                            ],
+                            "scene_id": "scene-entrance",
+                            "status": "no_scene_change",
+                            "items": [],
                         },
                         "table_prompt": {
                             "audience_id": "table",
+                            "scene_id": "scene-entrance",
+                            "status": "none",
                             "items": [],
                         },
                         "audit_record": {
                             "audience_id": "dm",
+                            "scene_id": "scene-entrance",
                             "items": [
                                 {
+                                    "character_id": "aria",
+                                    "event_id": event_id,
                                     "kind": "message_classified",
                                     "input_reference": "message-dialogue-1",
                                     "message_type": "character_dialogue",
                                     "persisted": True,
+                                    "revision": 3,
+                                    "scene_id": "scene-entrance",
+                                    "source": "dnd-5e",
+                                    "speaker_id": "alice",
+                                    "state_changes": {
+                                        "revision": {
+                                            "after": 3,
+                                            "before": 2,
+                                        }
+                                    },
                                 }
                             ],
                         },
@@ -295,13 +314,18 @@ class MessageFacadeTests(unittest.TestCase):
                         "input_reference": "message-action-1",
                         "content": "我尝试撬开北门",
                         "explicit": True,
+                        "audience_id": "table",
                     },
                     "scene_narrative": {
                         "audience_id": "table",
+                        "scene_id": "scene-entrance",
+                        "status": "no_scene_change",
                         "items": [],
                     },
                     "table_prompt": {
                         "audience_id": "table",
+                        "scene_id": "scene-entrance",
+                        "status": "action_required",
                         "items": [
                             {
                                 "kind": "action_resolution_required",
@@ -361,7 +385,7 @@ class MessageFacadeTests(unittest.TestCase):
                 "--input-reference",
                 "message-ooc-2",
                 "--text",
-                "//我去倒杯水",
+                "//请保留 *",
             )
             payload = json.loads(result.stdout) if result.stdout else None
 
@@ -370,7 +394,7 @@ class MessageFacadeTests(unittest.TestCase):
                     "returncode": 0,
                     "revision": 2,
                     "message_type": "ooc",
-                    "content": "我去倒杯水",
+                    "content": "请保留 *",
                     "explicit": True,
                     "transaction": None,
                 },

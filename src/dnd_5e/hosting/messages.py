@@ -5,6 +5,16 @@ import sqlite3
 import uuid
 
 from dnd_5e.errors import FacadeError
+from dnd_5e.messaging.protocol import (
+    AmbiguousAction,
+    CHARACTER_MESSAGE_TYPES,
+    ClassifiedMessage,
+    TablePromptKind,
+    character_controls,
+    classify_message,
+    message_audience_id,
+    message_policy,
+)
 from dnd_5e.state.messages import record_message
 from dnd_5e.state.types import (
     IdempotencyConflict,
@@ -20,120 +30,84 @@ from dnd_5e.workspace import (
 )
 
 
-def _character_controls(
-    configuration: dict[str, object],
-) -> dict[str, set[str]]:
-    players = configuration.get("players")
-    if not isinstance(players, list):
-        return {}
-    controls: dict[str, set[str]] = {}
-    for player in players:
-        if not isinstance(player, dict):
-            continue
-        player_id = player.get("player_id")
-        character_ids = player.get("character_ids")
-        if not isinstance(player_id, str) or not isinstance(character_ids, list):
-            continue
-        controls[player_id] = {
-            character_id
-            for character_id in character_ids
-            if isinstance(character_id, str)
-        }
-    return controls
-
-
-def _classify(text: str) -> tuple[str, str, bool]:
-    if text.startswith("“") and text.endswith("”") and len(text) > 2:
-        return "character_dialogue", text[1:-1], True
-    if text.startswith("*") and text.endswith("*") and len(text) > 2:
-        return "character_action", text[1:-1], True
-    inner_prefix = "（内心："
-    if (
-        text.startswith(inner_prefix)
-        and text.endswith("）")
-        and len(text) > len(inner_prefix) + 1
-    ):
-        return "character_inner", text[len(inner_prefix) : -1], True
-    if text.startswith("//") and len(text) > 2:
-        return "ooc", text[2:], True
-    if text.startswith("【") and text.endswith("】") and len(text) > 2:
-        return "system", text[1:-1], True
-    return "ooc", text, False
+_MESSAGE_SOURCE = "dnd-5e"
 
 
 def _output_layers(
-    message: dict[str, object],
+    classification: ClassifiedMessage,
     *,
-    persisted: bool,
+    speaker_id: str,
+    character_id: str | None,
+    scene_id: str,
+    input_reference: str,
+    audience_id: str,
+    revision: int,
+    transaction: dict[str, object] | None,
 ) -> dict[str, object]:
-    message_type = message["type"]
-    speaker_id = message["speaker_id"]
-    character_id = message["character_id"]
-    content = message["content"]
-    input_reference = message["input_reference"]
-    output_audience = (
-        f"player:{speaker_id}"
-        if message_type == "character_inner"
-        else "table"
-    )
-    narrative_items: list[dict[str, object]] = []
+    policy = message_policy(classification.message_type)
     prompt_items: list[dict[str, object]] = []
-    if message_type == "character_dialogue":
-        narrative_items.append(
-            {
-                "kind": "character_dialogue",
-                "character_id": character_id,
-                "content": content,
-            }
-        )
-    elif message_type == "character_action":
+    if policy.prompt_kind == TablePromptKind.ACTION_RESOLUTION_REQUIRED:
         prompt_items.append(
             {
-                "kind": "action_resolution_required",
+                "kind": policy.prompt_kind.value,
                 "character_id": character_id,
-                "content": content,
+                "content": classification.content,
             }
         )
-    elif message_type == "character_inner":
-        narrative_items.append(
-            {
-                "kind": "character_inner",
-                "character_id": character_id,
-                "content": content,
-            }
-        )
-    elif message_type == "system":
+    elif (
+        policy.prompt_kind
+        == TablePromptKind.SYSTEM_MESSAGE_VALIDATION_REQUIRED
+    ):
         prompt_items.append(
             {
-                "kind": "system_message",
-                "content": content,
-            }
-        )
-    else:
-        prompt_items.append(
-            {
-                "kind": "ooc_message",
+                "kind": policy.prompt_kind.value,
                 "speaker_id": speaker_id,
-                "content": content,
+                "content": classification.content,
             }
         )
+
+    event_id: str | None = None
+    state_changes: dict[str, object] = {}
+    if transaction is not None:
+        stored_event_id = transaction.get("event_id")
+        expected_revision = transaction.get("expected_revision")
+        if isinstance(stored_event_id, str):
+            event_id = stored_event_id
+        if type(expected_revision) is int:
+            state_changes["revision"] = {
+                "before": expected_revision,
+                "after": revision,
+            }
+
     return {
         "scene_narrative": {
-            "audience_id": output_audience,
-            "items": narrative_items,
+            "audience_id": audience_id,
+            "scene_id": scene_id,
+            "status": "no_scene_change",
+            "items": [],
         },
         "table_prompt": {
-            "audience_id": output_audience,
+            "audience_id": audience_id,
+            "scene_id": scene_id,
+            "status": policy.prompt_status,
             "items": prompt_items,
         },
         "audit_record": {
             "audience_id": "dm",
+            "scene_id": scene_id,
             "items": [
                 {
+                    "character_id": character_id,
+                    "event_id": event_id,
                     "kind": "message_classified",
                     "input_reference": input_reference,
-                    "message_type": message_type,
-                    "persisted": persisted,
+                    "message_type": classification.message_type.value,
+                    "persisted": policy.persisted,
+                    "revision": revision,
+                    "scene_id": scene_id,
+                    "source": _MESSAGE_SOURCE,
+                    "speaker_id": speaker_id,
+                    "state_changes": state_changes,
                 }
             ],
         },
@@ -164,7 +138,9 @@ def handle_message(
             "campaign_not_ready",
             "战役必须先完成 Session Zero 才能处理玩家消息。",
         )
-    if text.startswith("*") != text.endswith("*"):
+    try:
+        classification = classify_message(text)
+    except AmbiguousAction as error:
         raise FacadeError(
             "ambiguous_action",
             "角色行动标记不完整，必须先澄清而不能修改战役状态。",
@@ -173,71 +149,50 @@ def handle_message(
                 "scene_id": scene_id,
                 "speaker_id": speaker_id,
             },
-        )
-    controls = _character_controls(summary.initial_config)
-    message_type, content, explicit = _classify(text)
-    if message_type == "system":
-        if speaker_id != "system":
-            raise FacadeError(
-                "forged_system_message",
-                "玩家文本不能伪造桌务或系统结果。",
-                {
-                    "input_reference": input_reference,
-                    "message_type": message_type,
-                    "scene_id": scene_id,
-                    "speaker_id": speaker_id,
-                },
-            )
-    elif speaker_id not in controls:
+        ) from error
+    if not classification.content.strip():
+        raise FacadeError("invalid_message", "消息正文不能为空。")
+
+    controls = character_controls(summary.initial_config)
+    if speaker_id not in controls:
         raise FacadeError(
             "unknown_speaker",
             "发言者不在稳定玩家名册中。",
             {"speaker_id": speaker_id},
         )
-
-    persisted = message_type in {
-        "character_dialogue",
-        "character_action",
-        "character_inner",
-        "system",
-    }
-    if message_type.startswith("character_") and (
-        character_id is None or character_id not in controls[speaker_id]
-    ):
+    if classification.message_type in CHARACTER_MESSAGE_TYPES:
+        if character_id is None or character_id not in controls[speaker_id]:
+            raise FacadeError(
+                "character_control_forbidden",
+                "发言者无权控制该角色。",
+                {
+                    "character_id": character_id,
+                    "input_reference": input_reference,
+                    "message_type": classification.message_type.value,
+                    "scene_id": scene_id,
+                    "speaker_id": speaker_id,
+                },
+            )
+    elif character_id is not None:
         raise FacadeError(
-            "character_control_forbidden",
-            "发言者无权控制该角色。",
-            {
-                "character_id": character_id,
-                "input_reference": input_reference,
-                "message_type": message_type,
-                "scene_id": scene_id,
-                "speaker_id": speaker_id,
-            },
+            "invalid_message",
+            "OOC 与待验证系统消息不能声明角色控制。",
         )
 
-    message: dict[str, object] = {
-        "type": message_type,
-        "speaker_id": speaker_id,
-        "character_id": character_id,
-        "scene_id": scene_id,
-        "input_reference": input_reference,
-        "content": content,
-        "explicit": explicit,
-    }
-    output_layers = _output_layers(message, persisted=persisted)
+    policy = message_policy(classification.message_type)
+    audience_id = message_audience_id(
+        classification.message_type,
+        speaker_id,
+    )
     transaction: dict[str, object] | None = None
-    if persisted:
+    if policy.persisted:
         if expected_revision is None or expected_revision < 1:
             raise FacadeError(
                 "invalid_state_request",
                 "需要落盘的消息必须包含有效前置修订号。",
             )
-        message_audience = (
-            f"player:{speaker_id}"
-            if message_type == "character_inner"
-            else "table"
-        )
+        if character_id is None:
+            raise AssertionError("持久消息必须具有已经授权的角色")
         request = MessageRecordRequest(
             expected_revision=expected_revision,
             idempotency_key=f"message:{input_reference}",
@@ -245,11 +200,11 @@ def handle_message(
             speaker_id=speaker_id,
             character_id=character_id,
             scene_id=scene_id,
-            message_type=message_type,
+            message_type=classification.message_type,
             raw_text=text,
-            content=content,
-            source="dnd-5e",
-            audience_id=message_audience,
+            content=classification.content,
+            source=_MESSAGE_SOURCE,
+            audience_id=audience_id,
         )
         try:
             record = record_message(
@@ -294,12 +249,32 @@ def handle_message(
             "replayed": record.replayed,
             "source": request.source,
         }
+
+    message: dict[str, object] = {
+        "type": classification.message_type.value,
+        "speaker_id": speaker_id,
+        "character_id": character_id,
+        "scene_id": scene_id,
+        "input_reference": input_reference,
+        "content": classification.content,
+        "explicit": classification.explicit,
+        "audience_id": audience_id,
+    }
     return {
         "ok": True,
         "operation": "message",
         "campaign_id": summary.campaign_id,
         "revision": summary.revision,
         "message": message,
-        "output_layers": output_layers,
+        "output_layers": _output_layers(
+            classification,
+            speaker_id=speaker_id,
+            character_id=character_id,
+            scene_id=scene_id,
+            input_reference=input_reference,
+            audience_id=audience_id,
+            revision=summary.revision,
+            transaction=transaction,
+        ),
         "transaction": transaction,
     }
