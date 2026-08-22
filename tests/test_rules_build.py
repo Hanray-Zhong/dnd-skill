@@ -358,6 +358,7 @@ class RulesLibraryBuildBoundaryTests(unittest.TestCase):
                     "coverage.json",
                     "entities/syn-condition-795496e53334.md",
                     "entities/syn-spell-959054de576b.md",
+                    "exceptions.json",
                     "index.json",
                     "library.json",
                     "sections/syn-semantic-section-49abe87888b2.md",

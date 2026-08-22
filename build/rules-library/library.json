@@ -1,7 +1,7 @@
 {
   "asset_count": 4481,
   "blocked_sha256": "8e07ce584f3c344441471a61ccdf0c042273d1b39c185fc47c79459ef15d110a",
-  "build_tool_version": "rules-library-builder-v2",
+  "build_tool_version": "rules-library-builder-v3",
   "category_counts": {
     "armor": 13,
     "condition": 15,
@@ -24,9 +24,10 @@
     "local_preview": "available",
     "public_release": "available"
   },
+  "exceptions_sha256": "4aefba57f2165a9f5a5ede8ad69e866e13fcae58996e766b43cf12bf12fe387d",
   "format": "dnd-rules-library-v1",
   "index_sha256": "6e9c00fab37e8445a676619cce938275d0a36e026099aba795a18922cde2797a",
-  "library_sha256": "dd4b22897ee278176f84017ae5dc6af815ec8fba71814f13d4fcd28581110828",
+  "library_sha256": "e40328de1d64c9c67b5fc99dc02cdea34bc19d7e5113397d63298254a0a5f41f",
   "library_version": "core-cn-2014-v1-public",
   "normalizer_version": "semantic-markdown-v2",
   "parser_versions": {

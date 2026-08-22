@@ -209,6 +209,10 @@ def build_parser() -> argparse.ArgumentParser:
     query_kind.add_argument("--id")
     query_kind.add_argument("--alias")
     query_kind.add_argument("--topic")
+    rules_query.add_argument(
+        "--general-rule-id",
+        help="规则库已复核例外声明中被具体实体覆盖的一般默认规则稳定标识",
+    )
     rules_query.add_argument("--limit", type=_positive_integer, default=20)
     return parser
 
@@ -300,24 +304,41 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         try:
             library = RulesLibrary(options.library)
-            rules = library.query(
-                kind=query_kind,
-                value=query_value,
-                limit=options.limit,
-            )
+            general_rules: list[dict[str, object]] = []
+            resolution: dict[str, object] | None = None
+            if options.general_rule_id is None:
+                rules = library.query(
+                    kind=query_kind,
+                    value=query_value,
+                    limit=options.limit,
+                )
+            else:
+                entity, general_rule, resolution = (
+                    library.resolve_specific_exception(
+                        entity_kind=query_kind,
+                        entity_value=query_value,
+                        general_rule_id=options.general_rule_id,
+                    )
+                )
+                rules = [entity]
+                general_rules = [general_rule]
         except FacadeError as error:
             return _report_error(error)
+        payload: dict[str, object] = {
+            "ok": True,
+            "query": {"kind": query_kind, "value": query_value},
+            "library": {
+                "version": library.version,
+                "sha256": library.sha256,
+            },
+            "rules": rules,
+        }
+        if resolution is not None:
+            payload["general_rules"] = general_rules
+            payload["resolution"] = resolution
         print(
             json.dumps(
-                {
-                    "ok": True,
-                    "query": {"kind": query_kind, "value": query_value},
-                    "library": {
-                        "version": library.version,
-                        "sha256": library.sha256,
-                    },
-                    "rules": rules,
-                },
+                payload,
                 ensure_ascii=False,
                 sort_keys=True,
             )

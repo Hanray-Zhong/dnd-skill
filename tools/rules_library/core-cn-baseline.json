@@ -1,6 +1,20 @@
 {
   "format": "dnd-rules-baseline-v1",
   "library_version": "core-cn-2014-v1-public",
+  "rule_exceptions": [
+    {
+      "id": "core-cn-action-free-overrides-magical-restrained",
+      "specific_rule_alias": "行动自如",
+      "general_rule_alias": "束缚",
+      "scope": "行动自如目标是否承受魔法束缚的速度归零",
+      "general_value": "速度变为 0",
+      "specific_value": "无法生效",
+      "general_evidence": "被束缚生物的速度变为 0",
+      "specific_evidence": "法术或魔法效应对其无法生效",
+      "review_status": "verified",
+      "review_evidence": "https://github.com/Hanray-Zhong/dnd-skill/issues/5"
+    }
+  ],
   "sources": [
     {
       "id": "phb-cn-1.72",

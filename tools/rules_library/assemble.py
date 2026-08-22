@@ -6,14 +6,14 @@ import json
 from pathlib import Path
 import re
 
-from tools.rules_library.baseline import SourceSpec
+from tools.rules_library.baseline import RuleExceptionSpec, SourceSpec
 from tools.rules_library.coverage import coverage_record
 from tools.rules_library.errors import BuildError
 from tools.rules_library.models import DraftAsset, ExtractedSource
 from tools.rules_library.text import lookup_key
 
 
-BUILD_TOOL_VERSION = "rules-library-builder-v2"
+BUILD_TOOL_VERSION = "rules-library-builder-v3"
 NORMALIZER_VERSION = "semantic-markdown-v2"
 
 
@@ -289,14 +289,119 @@ def _source_record(extracted: ExtractedSource) -> dict[str, object]:
     }
 
 
+def _resolve_exception_rule(
+    alias: str,
+    index_items: list[dict[str, object]],
+) -> dict[str, object]:
+    normalized_alias = lookup_key(alias)
+    matches: list[dict[str, object]] = []
+    for item in index_items:
+        aliases = item.get("aliases")
+        if not isinstance(aliases, list):
+            raise AssertionError("规则索引缺少已验证别名。")
+        if any(
+            isinstance(candidate, str) and lookup_key(candidate) == normalized_alias
+            for candidate in aliases
+        ):
+            matches.append(item)
+    if len(matches) != 1:
+        raise BuildError(
+            "unresolved_rule_exception",
+            "规则例外声明无法唯一定位规则条目。",
+        )
+    return matches[0]
+
+
+def _rule_exception_records(
+    specs: tuple[RuleExceptionSpec, ...],
+    index_items: list[dict[str, object]],
+    drafts: list[DraftAsset],
+) -> list[dict[str, object]]:
+    if len(index_items) != len(drafts):
+        raise AssertionError("规则索引与提取草稿数量不一致。")
+    body_by_id = {
+        str(item["id"]): "\n\n".join(draft.body_parts).strip()
+        for item, draft in zip(index_items, drafts, strict=True)
+    }
+    records: list[dict[str, object]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    for spec in specs:
+        if spec.review_status != "verified":
+            raise BuildError(
+                "unreviewed_rule_exception",
+                "规则例外声明尚未完成复核。",
+            )
+        specific = _resolve_exception_rule(spec.specific_rule_alias, index_items)
+        general = _resolve_exception_rule(spec.general_rule_alias, index_items)
+        specific_id = str(specific["id"])
+        general_id = str(general["id"])
+        pair = (specific_id, general_id)
+        references = specific.get("cross_references")
+        if (
+            specific_id == general_id
+            or specific.get("category") == "semantic_section"
+            or specific.get("extraction_status") != "verified"
+            or general.get("extraction_status") != "verified"
+            or general.get("rule_status") != "default"
+            or not isinstance(references, list)
+            or not all(isinstance(reference, str) for reference in references)
+        ):
+            raise BuildError("invalid_rule_exception", "规则例外声明无效。")
+        if general_id not in references:
+            raise BuildError(
+                "broken_rule_exception_reference",
+                "具体实体没有引用规则例外声明中的一般规则。",
+            )
+        conflict_values = (
+            spec.scope,
+            spec.general_value,
+            spec.specific_value,
+            spec.general_evidence,
+            spec.specific_evidence,
+            spec.review_evidence,
+        )
+        if (
+            pair in seen_pairs
+            or any(not value.strip() for value in conflict_values)
+            or spec.general_value == spec.specific_value
+            or spec.general_value not in spec.general_evidence
+            or spec.specific_value not in spec.specific_evidence
+            or spec.general_evidence not in body_by_id[general_id]
+            or spec.specific_evidence not in body_by_id[specific_id]
+        ):
+            raise BuildError(
+                "unverified_rule_exception",
+                "规则例外声明无法由两侧规则正文验证。",
+            )
+        seen_pairs.add(pair)
+        records.append(
+            {
+                "id": spec.exception_id,
+                "specific_rule_id": specific_id,
+                "general_rule_id": general_id,
+                "scope": spec.scope,
+                "general_value": spec.general_value,
+                "specific_value": spec.specific_value,
+                "general_evidence": spec.general_evidence,
+                "specific_evidence": spec.specific_evidence,
+                "review_status": spec.review_status,
+                "review_evidence": spec.review_evidence,
+            }
+        )
+    records.sort(key=lambda record: str(record["id"]))
+    return records
+
+
 def assemble_library(
     staging: Path,
     extracted_sources: tuple[ExtractedSource, ...],
+    rule_exceptions: tuple[RuleExceptionSpec, ...],
 ) -> dict[str, object]:
     (staging / "sections").mkdir()
     (staging / "entities").mkdir()
     index_items, coverage_items, drafts = _asset_records(staging, extracted_sources)
     _add_backlinks(index_items)
+    exception_items = _rule_exception_records(rule_exceptions, index_items, drafts)
     index_items.sort(key=lambda item: str(item["id"]))
     coverage_items.sort(key=lambda item: str(item["asset_id"]))
     if len(index_items) != len(coverage_items):
@@ -318,6 +423,10 @@ def assemble_library(
         staging / "blocked.json",
         {"format": "dnd-rules-blocked-v1", "items": []},
     )
+    exceptions_hash = write_json(
+        staging / "exceptions.json",
+        {"format": "dnd-rules-exceptions-v1", "items": exception_items},
+    )
     public_ready = all(
         isinstance(item["rights"], dict)
         and item["rights"].get("status") == "authorized"
@@ -337,6 +446,7 @@ def assemble_library(
         "index_sha256": index_hash,
         "coverage_sha256": coverage_hash,
         "blocked_sha256": blocked_hash,
+        "exceptions_sha256": exceptions_hash,
         "asset_count": len(index_items),
         "category_counts": dict(
             sorted(Counter(draft.category for draft in drafts).items())

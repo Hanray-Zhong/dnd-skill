@@ -8,6 +8,10 @@ import re
 from typing import Any, cast
 
 from dnd_5e.errors import FacadeError
+from dnd_5e.rules.resolution import (
+    build_specific_exception_decision,
+    validate_rule_exceptions,
+)
 
 
 _MANIFEST_IDENTITY_KEYS = (
@@ -18,6 +22,7 @@ _MANIFEST_IDENTITY_KEYS = (
     "index_sha256",
     "coverage_sha256",
     "blocked_sha256",
+    "exceptions_sha256",
     "asset_count",
     "category_counts",
     "distribution",
@@ -46,6 +51,7 @@ _METADATA_HASHES = {
     "sources_sha256": "sources.json",
     "coverage_sha256": "coverage.json",
     "blocked_sha256": "blocked.json",
+    "exceptions_sha256": "exceptions.json",
 }
 
 
@@ -84,6 +90,59 @@ def _normalized_lookup(value: str) -> str:
     return re.sub(r"[\W_]+", "", value, flags=re.UNICODE).casefold()
 
 
+def _matching_items(
+    items: tuple[dict[str, object], ...],
+    *,
+    kind: str,
+    value: str,
+    entities_only: bool = False,
+) -> list[dict[str, object]]:
+    normalized_value = _normalized_lookup(value)
+    authoritative_items = [
+        item
+        for item in items
+        if item["extraction_status"] == "verified"
+        and (not entities_only or item["category"] != "semantic_section")
+    ]
+    if kind == "id":
+        matches = [item for item in authoritative_items if item["id"] == value]
+    elif kind == "alias":
+        matches = []
+        for item in authoritative_items:
+            aliases = item["aliases"]
+            if not isinstance(aliases, list):
+                raise _invalid_library()
+            if any(
+                isinstance(alias, str)
+                and _normalized_lookup(alias) == normalized_value
+                for alias in aliases
+            ):
+                matches.append(item)
+    elif kind == "topic":
+        matches = []
+        for item in authoritative_items:
+            title = item["title"]
+            aliases = item["aliases"]
+            chapter_path = item["chapter_path"]
+            if (
+                not isinstance(title, str)
+                or not isinstance(aliases, list)
+                or not isinstance(chapter_path, list)
+            ):
+                raise _invalid_library()
+            searchable_values = [title, *aliases, *chapter_path]
+            if any(
+                isinstance(candidate, str)
+                and normalized_value in _normalized_lookup(candidate)
+                for candidate in searchable_values
+            ):
+                matches.append(item)
+    else:
+        raise AssertionError(f"未知查询类型：{kind}")
+    matches.sort(key=lambda item: str(item["id"]))
+    return matches
+
+
 def default_library_root() -> Path:
     return Path(__file__).resolve().parents[1] / "rule_assets"
 
@@ -116,7 +175,13 @@ class RulesLibrary:
         try:
             contents = {
                 filename: (resolved_root / filename).read_bytes()
-                for filename in ("index.json", "sources.json", "coverage.json", "blocked.json")
+                for filename in (
+                    "index.json",
+                    "sources.json",
+                    "coverage.json",
+                    "blocked.json",
+                    "exceptions.json",
+                )
             }
             manifest_content = (resolved_root / "library.json").read_bytes()
         except OSError as error:
@@ -126,10 +191,12 @@ class RulesLibrary:
         sources = _load_json_object(contents["sources.json"])
         coverage = _load_json_object(contents["coverage.json"])
         blocked = _load_json_object(contents["blocked.json"])
+        exceptions = _load_json_object(contents["exceptions.json"])
         self._validate_manifest(manifest, contents)
         self._validate_supporting_manifests(sources, coverage, blocked)
         self._items = self._validate_index(index, manifest)
         self._validate_coverage(coverage, self._items)
+        self._exceptions = validate_rule_exceptions(exceptions, self._items)
         self._version = str(manifest["library_version"])
         self._sha256 = str(manifest["library_sha256"])
 
@@ -321,46 +388,84 @@ class RulesLibrary:
         value: str,
         limit: int = 20,
     ) -> list[dict[str, object]]:
-        normalized_value = _normalized_lookup(value)
-        matches: list[dict[str, object]] = []
-        authoritative_items = [
-            item for item in self._items if item["extraction_status"] == "verified"
-        ]
-        if kind == "id":
-            matches = [item for item in authoritative_items if item["id"] == value]
-        elif kind == "alias":
-            for item in authoritative_items:
-                aliases = item["aliases"]
-                if not isinstance(aliases, list):
-                    raise _invalid_library()
-                if any(
-                    isinstance(alias, str)
-                    and _normalized_lookup(alias) == normalized_value
-                    for alias in aliases
-                ):
-                    matches.append(item)
-        elif kind == "topic":
-            for item in authoritative_items:
-                title = item["title"]
-                aliases = item["aliases"]
-                chapter_path = item["chapter_path"]
-                if (
-                    not isinstance(title, str)
-                    or not isinstance(aliases, list)
-                    or not isinstance(chapter_path, list)
-                ):
-                    raise _invalid_library()
-                searchable_values = [title, *aliases, *chapter_path]
-                if any(
-                    isinstance(candidate, str)
-                    and normalized_value in _normalized_lookup(candidate)
-                    for candidate in searchable_values
-                ):
-                    matches.append(item)
-        else:
-            raise AssertionError(f"未知查询类型：{kind}")
-        matches.sort(key=lambda item: str(item["id"]))
+        matches = _matching_items(self._items, kind=kind, value=value)
         selected = matches[:limit]
         if not selected:
             raise FacadeError("rule_not_found", "规则章节库中没有匹配项。")
         return [self._load_asset(item) for item in selected]
+
+    def resolve_specific_exception(
+        self,
+        *,
+        entity_kind: str,
+        entity_value: str,
+        general_rule_id: str,
+    ) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+        if entity_kind not in {"id", "alias"}:
+            raise FacadeError(
+                "invalid_rule_resolution",
+                "具体实体例外只能按稳定标识或名称解析。",
+            )
+        entity_matches = _matching_items(
+            self._items,
+            kind=entity_kind,
+            value=entity_value,
+            entities_only=True,
+        )
+        if not entity_matches:
+            raise FacadeError(
+                "rule_entity_not_found",
+                "规则章节库中没有匹配的完整规则实体。",
+            )
+        if len(entity_matches) != 1:
+            raise FacadeError(
+                "ambiguous_rule_entity",
+                "实体名称对应多个规则条目，请改用稳定标识。",
+                {
+                    "candidate_ids": [
+                        str(item["id"]) for item in entity_matches
+                    ]
+                },
+            )
+        entity_item = entity_matches[0]
+        general_matches = _matching_items(
+            self._items,
+            kind="id",
+            value=general_rule_id,
+        )
+        if not general_matches:
+            raise FacadeError(
+                "general_rule_not_found",
+                "规则章节库中没有匹配的一般规则。",
+            )
+        general_item = general_matches[0]
+        if (
+            general_item["id"] == entity_item["id"]
+            or general_item["rule_status"] != "default"
+        ):
+            raise FacadeError(
+                "invalid_general_rule",
+                "具体实体例外只能覆盖一般默认规则。",
+            )
+        entity_id = str(entity_item["id"])
+        matching_exceptions = [
+            exception
+            for exception in self._exceptions
+            if exception["specific_rule_id"] == entity_id
+            and exception["general_rule_id"] == general_rule_id
+        ]
+        if not matching_exceptions:
+            raise FacadeError(
+                "rule_exception_not_found",
+                "规则章节库没有匹配且已经复核的具体例外声明。",
+            )
+        if len(matching_exceptions) != 1:
+            raise _invalid_library()
+        entity = self._load_asset(entity_item)
+        general_rule = self._load_asset(general_item)
+        decision = build_specific_exception_decision(
+            entity=entity,
+            general_rule=general_rule,
+            exception=matching_exceptions[0],
+        )
+        return entity, general_rule, decision
