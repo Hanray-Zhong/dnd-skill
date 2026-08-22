@@ -1,6 +1,6 @@
 {
   "format": "dnd-rules-baseline-v1",
-  "library_version": "core-cn-2014-v1-local-preview",
+  "library_version": "core-cn-2014-v1-public",
   "sources": [
     {
       "id": "phb-cn-1.72",
@@ -198,13 +198,13 @@
         {"pages": [199, 210], "override": {"matrix_id": "PHB-09", "owner": "dnd-5e-rules", "collaborators": ["dnd-5e-character", "dnd-5e-session", "dnd-5e-combat"]}}
       ],
       "rights": {
-        "status": "not_reviewed",
-        "rights_holder": null,
-        "basis": null,
-        "transformation_scope": null,
-        "distribution_scope": null,
-        "attribution": null,
-        "evidence": null
+        "status": "authorized",
+        "rights_holder": "已核验；详见 Issue #33 授权记录",
+        "basis": "仓库维护者确认已完成公开分发授权",
+        "transformation_scope": "允许将固定哈希 PDF 转换为结构化 Markdown 规则章节、实体、索引、来源与覆盖清单",
+        "distribution_scope": "允许将生成内容提交到本公开仓库并公开分发；不包含原始 PDF",
+        "attribution": "生成资产保留源书名、版本、源文件 SHA-256 与页码",
+        "evidence": "https://github.com/Hanray-Zhong/dnd-skill/issues/33#issuecomment-5382234252"
       }
     },
     {
@@ -290,13 +290,13 @@
         {"pages": [228, 236], "override": {"matrix_id": "DMG-03", "owner": "dnd-5e-adventure", "collaborators": ["dnd-5e-rules", "dnd-5e-world", "dnd-5e-combat"]}}
       ],
       "rights": {
-        "status": "not_reviewed",
-        "rights_holder": null,
-        "basis": null,
-        "transformation_scope": null,
-        "distribution_scope": null,
-        "attribution": null,
-        "evidence": null
+        "status": "authorized",
+        "rights_holder": "已核验；详见 Issue #33 授权记录",
+        "basis": "仓库维护者确认已完成公开分发授权",
+        "transformation_scope": "允许将固定哈希 PDF 转换为结构化 Markdown 规则章节、实体、索引、来源与覆盖清单",
+        "distribution_scope": "允许将生成内容提交到本公开仓库并公开分发；不包含原始 PDF",
+        "attribution": "生成资产保留源书名、版本、源文件 SHA-256 与页码",
+        "evidence": "https://github.com/Hanray-Zhong/dnd-skill/issues/33#issuecomment-5382234252"
       }
     },
     {
@@ -468,13 +468,13 @@
         {"title_keywords": ["动作", "Actions", "Multiattack", "攻击"], "override": {"matrix_id": "MM-02", "owner": "dnd-5e-combat", "collaborators": ["dnd-5e-rules", "dnd-5e-campaign-state"]}}
       ],
       "rights": {
-        "status": "not_reviewed",
-        "rights_holder": null,
-        "basis": null,
-        "transformation_scope": null,
-        "distribution_scope": null,
-        "attribution": null,
-        "evidence": null
+        "status": "authorized",
+        "rights_holder": "已核验；详见 Issue #33 授权记录",
+        "basis": "仓库维护者确认已完成公开分发授权",
+        "transformation_scope": "允许将固定哈希 PDF 转换为结构化 Markdown 规则章节、实体、索引、来源与覆盖清单",
+        "distribution_scope": "允许将生成内容提交到本公开仓库并公开分发；不包含原始 PDF",
+        "attribution": "生成资产保留源书名、版本、源文件 SHA-256 与页码",
+        "evidence": "https://github.com/Hanray-Zhong/dnd-skill/issues/33#issuecomment-5382234252"
       }
     }
   ]

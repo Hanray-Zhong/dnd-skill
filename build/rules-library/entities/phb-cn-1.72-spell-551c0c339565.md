@@ -1,0 +1,20 @@
+---
+{"activation_condition":"三宝书规则基线适用且没有更具体规则覆盖。","aliases":["法术无效结界 Globe of Invulnerability","法术无效结界","Globe of Invulnerability"],"category":"spell","chapter_path":["第3部分魔法规则 The Rules of Magic","第11章：法术Spells","法术详述Spell Descriptions","法术无效结界Globe of Invulnerability 6环防护"],"content_sha256":"03b9a65944d5974623fb0b7bf273b42f07f07f15bcdeeff1f42e34abec376d36","cross_references":["dmg-cn-1.1-semantic-section-bc7e083f6ebe","phb-cn-1.72-equipment-ffe5f18ff139","phb-cn-1.72-semantic-section-3db7780a0712","phb-cn-1.72-semantic-section-900a7ba9a015","phb-cn-1.72-semantic-section-99ba9702cb0f","phb-cn-1.72-semantic-section-a0fe69ef9851","phb-cn-1.72-semantic-section-c5de233a37cc","phb-cn-1.72-semantic-section-eaedfb7e2b3b"],"extraction_status":"verified","id":"phb-cn-1.72-spell-551c0c339565","pages":[{"label":"245","pdf_page":245}],"rule_status":"default","source":{"id":"phb-cn-1.72","sha256":"0f6ce6167a9812d43a4942a4754ce6ae6b53e5f6b98f1e59c6491f3ca46d87b3","title":"《玩家手册》中译 v1.72","version":"1.72"},"title":"法术无效结界 Globe of Invulnerability"}
+---
+
+# 法术无效结界 Globe of Invulnerability
+
+6 环防护  
+施法时间： 1 动作  
+施法距离：自身（10 尺半径）  
+法术成分： V、 S、 M （一个玻璃质或水晶质的珠子，其将在法  
+术终止时破碎）  
+持续时间：专注，至多 1 小时  
+一个固定的微光屏障从你周围半径 10 尺区域内涌现并在  
+法术持续时间内维持存在。  
+任何在屏障外施放的 5 环或更低环阶的法术无法影响其内  
+的生物或物件，这些法术即使以升环施法施展也无法突破该限  
+制。这些法术可以以屏障内的生物或物件为目标，但无法对其  
+生效。其效果有如屏障内的区域被排除在法术效应范围之外。  
+升环施法效应。当你使用 7 环或更高法术位施展该法术时，  
+你使用的法术位每比 6 环高一环，屏障能阻挡的法术就高一环。

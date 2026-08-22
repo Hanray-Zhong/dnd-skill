@@ -1,0 +1,47 @@
+---
+{"activation_condition":"三宝书规则基线适用且没有更具体规则覆盖。","aliases":["反魔法力场 Antimagic Field","反魔法力场","Antimagic Field"],"category":"spell","chapter_path":["第3部分魔法规则 The Rules of Magic","第11章：法术Spells","法术详述Spell Descriptions","反魔法力场Antimagic Field 8环防护"],"content_sha256":"96dcd2b159bad2dcd734368615c2f50c1f74dfbf4353bba4e3c5c935f1048ec9","cross_references":["dmg-cn-1.1-semantic-section-1a593aef9d93","dmg-cn-1.1-semantic-section-bc7e083f6ebe","dmg-cn-1.1-semantic-section-ea1152aaffd4","mm-cn-1.3.2-semantic-section-62cb8e5a2455","phb-cn-1.72-condition-40438b2cc68a","phb-cn-1.72-semantic-section-248b356805bd","phb-cn-1.72-semantic-section-3db7780a0712","phb-cn-1.72-semantic-section-900a7ba9a015","phb-cn-1.72-semantic-section-91188e2fa6d4","phb-cn-1.72-semantic-section-a0fe69ef9851","phb-cn-1.72-semantic-section-c5de233a37cc","phb-cn-1.72-semantic-section-ced008fc0f32","phb-cn-1.72-semantic-section-eaedfb7e2b3b","phb-cn-1.72-spell-018e7a9f2d12","phb-cn-1.72-spell-862b220a60f8","phb-cn-1.72-spell-9a2f341bc43d","phb-cn-1.72-spell-a6b54f0a07e3","phb-cn-1.72-spell-a72f7744f445","phb-cn-1.72-weapon-08c59c1d0435","phb-cn-1.72-weapon-e77531643504"],"extraction_status":"verified","id":"phb-cn-1.72-spell-a0e3fbd19955","pages":[{"label":"213","pdf_page":213},{"label":"214","pdf_page":214}],"rule_status":"default","source":{"id":"phb-cn-1.72","sha256":"0f6ce6167a9812d43a4942a4754ce6ae6b53e5f6b98f1e59c6491f3ca46d87b3","title":"《玩家手册》中译 v1.72","version":"1.72"},"title":"反魔法力场 Antimagic Field"}
+---
+
+# 反魔法力场 Antimagic Field
+
+8 环防护  
+施法时间： 1 动作  
+施法距离：自身（10 尺半径球状）  
+法术成分： V、 S、 M （一撮铁粉或铁屑）  
+持续时间：专注，至多 1 小时  
+半径 10 尺的隐形球状反魔法能量环绕着你，将该区域与  
+弥漫在多元宇宙间的魔法能量隔离开来。在该球状力场内：法  
+术无法施放；召唤生物消失无踪；魔法物品也失去其效应。该  
+力场以你为中心移动，直至法术终止。  
+除非其来自神器或神祇本身，否则任何法术和魔法效应都  
+将在力场内受压制而无法波及力场内部。在力场内施放的法术，  
+其效应被压制的同时其使用的法术位依然被消耗。被压制的魔  
+法效应不会生效，但其持续时间仍然如常计算。  
+目标效应 Targeted Effects。法术或其他魔法效应以生物或  
+物件为目标时（比如魔法飞弹和魅惑人类），无法对力场内的目  
+标生效。  
+
+魔法区域 Areas of Magic。法术和其他魔法效应产生的区  
+域影响（比如火球术），无法波及力场内部。如果力场与某一魔  
+法效应重叠，则该效应在重叠部分被压制。例如，当力场与火  
+墙术产生的火焰重叠时，重叠区域的火焰被压制。如果重叠区  
+域够大，甚至可以将火墙从中间截断。  
+法术 Spell。力场中的生物或物件身上生效的法术或其他魔  
+法效应会受到压制。  
+魔法物品 Magic Items。魔法物品的属性和威能在力场中  
+受到压制。例如，一把 +1 长剑在力场中视为一把非魔法长剑。  
+用以攻击力场内目标，或被力场内攻击者持用的魔法武器，  
+其属性和威力将受到压制。如果一把魔法武器或是一发魔法弹  
+药完全离开力场范围（例如，你从力场内向力场外的某个目标  
+发射一支箭矢或是投掷一把标枪），则其中的魔法将在离开力场  
+的瞬间得以恢复。  
+魔法旅行 Magic Tracel。以力场内区域为起点或终点的传  
+送或位面旅行效应无法生效。在力场内，通往某地、某世界或  
+某位面的传送门，以及次元空间的入口（诸如魔绳术所创造的  
+区域）都被暂时关闭。  
+生物和物件 Creatures and Objects。在力场内，由魔法创  
+造或召唤的生物或物件暂时消失。如此消失的生物，在力场不  
+再覆盖其所占据空间时立刻在该处重新出现。  
+解除魔法 Dispel Magic。法术和其他魔法效应产生的类似  
+法术解除魔法的效应对力场无效。另外，不同来源的反魔法力  
+场 antimagic field 之间不会相互抵消。

@@ -78,4 +78,4 @@ PYTHONPATH=src python -m tools.rules_library preview-wheel \
 - `local_preview`：是否可以生成本机预览包；
 - `public_release`：来源授权清单是否允许公开分发。
 
-当前三本来源的授权字段尚未完成复核，因此完整构建应显示 `content_quality: passed`、`local_preview: available` 和 `public_release: blocked`。显式请求公开构建会以 `public_release_blocked` 失败；不得把本地预览 wheel 上传、提交或描述为公开发布物。正式公开门禁继续由 Issue #33 负责。
+三本固定来源的公开分发授权已由仓库维护者核验，并记录在 Issue #33。使用 `--publication public` 的完整构建应显示 `content_quality: passed`、`local_preview: available` 和 `public_release: available`；生成内容可以提交到本公开仓库，但原始 PDF、标准模组样本、缓存、临时文件和个人绝对路径仍不得进入发布物。Issue #33 的其他完整覆盖、运行与整体发布门禁继续独立生效。

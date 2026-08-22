@@ -1,0 +1,2 @@
+# 生成规则 Markdown 使用 CommonMark 行尾双空格保留来源排版换行。
+build/rules-library/**/*.md whitespace=-blank-at-eol

@@ -1,0 +1,11 @@
+---
+{"activation_condition":"三宝书规则基线适用且没有更具体规则覆盖。","aliases":["整副纸牌 playing card set","整副纸牌","playing card set"],"category":"tool","chapter_path":["第1部分创建角色 Creating a Character","第5章：装备Equipment","工具Tools","工具表Tools","整副纸牌 playing card set"],"content_sha256":"1b537fbd8dfea9043e9220e63fe0d9a58d8ad800500034ae7927570d4c29ac13","cross_references":["phb-cn-1.72-semantic-section-9b2ab4b2f7dd"],"extraction_status":"verified","id":"phb-cn-1.72-tool-b8d83b442176","pages":[{"label":"154","pdf_page":154}],"rule_status":"default","source":{"id":"phb-cn-1.72","sha256":"0f6ce6167a9812d43a4942a4754ce6ae6b53e5f6b98f1e59c6491f3ca46d87b3","title":"《玩家手册》中译 v1.72","version":"1.72"},"title":"整副纸牌 playing card set"}
+---
+
+# 整副纸牌 playing card set
+
+| 物品 | 价格 | 重量 |
+| --- | --- | --- |
+| 整副纸牌 playing card set | 5 sp | － |
+
+完整规则上下文见“工具表Tools”。
