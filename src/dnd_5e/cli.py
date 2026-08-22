@@ -9,6 +9,7 @@ from typing import Any
 
 from dnd_5e.campaign_start.session_zero import complete_session_zero
 from dnd_5e.catalog import public_skill_catalog
+from dnd_5e.character import recalculate_character_derived_value
 from dnd_5e.errors import FacadeError
 from dnd_5e.hosting.messages import handle_message
 from dnd_5e.rules import RulesLibrary
@@ -16,6 +17,7 @@ from dnd_5e.state.types import (
     READY_TO_PLAY,
     CampaignConfigUpdate,
     CampaignSummary,
+    FormulaCalculationUpdate,
     SessionZeroCompletion,
 )
 from dnd_5e.workspace import (
@@ -48,6 +50,25 @@ def _initial_config(value: str) -> dict[str, object]:
 
 def _session_zero_configuration(value: str) -> dict[str, object]:
     return _json_object(value, label="Session Zero 配置")
+
+
+def _formula_inputs(value: str) -> dict[str, object]:
+    return _json_object(value, label="公式输入")
+
+
+def _formula_modifiers(value: str) -> list[dict[str, object]]:
+    try:
+        parsed: Any = json.loads(
+            value,
+            parse_constant=_reject_nonstandard_json_constant,
+        )
+    except (json.JSONDecodeError, ValueError) as error:
+        raise argparse.ArgumentTypeError(f"公式修正项不是有效 JSON：{error}") from error
+    if not isinstance(parsed, list) or not all(
+        isinstance(item, dict) for item in parsed
+    ):
+        raise argparse.ArgumentTypeError("公式修正项必须是 JSON object array")
+    return parsed
 
 
 def _positive_integer(value: str) -> int:
@@ -104,6 +125,8 @@ def _campaign_success_payload(
     }
     if summary.audiences:
         payload["audiences"] = summary.audiences
+    if summary.derived_values:
+        payload["derived_values"] = summary.derived_values
     return payload
 
 
@@ -143,6 +166,27 @@ def _session_zero_success_payload(
         "idempotency_key": completion.request.idempotency_key,
         "replayed": completion.replayed,
         "source": completion.request.source,
+    }
+    return payload
+
+
+def _formula_update_success_payload(
+    workspace: Path,
+    update: FormulaCalculationUpdate,
+) -> dict[str, object]:
+    payload = _campaign_success_payload("recalculate", workspace, update.summary)
+    payload["calculation"] = update.calculation
+    payload["transaction"] = {
+        "audience_id": update.request.audience_id,
+        "event_id": update.event_id,
+        "expected_changes": {
+            "character_id": update.request.character_id,
+            "formula_id": update.request.formula_id,
+            "result": update.calculation["result"],
+        },
+        "idempotency_key": update.request.idempotency_key,
+        "replayed": update.replayed,
+        "source": update.request.source,
     }
     return payload
 
@@ -223,6 +267,36 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="仅需要落盘的消息所依据的当前修订号",
+    )
+    formula_parser = subcommands.add_parser(
+        "recalculate",
+        help="通过版本化公式目录重算并保存一项角色派生数据",
+    )
+    formula_parser.add_argument("workspace", type=Path, help="既有战役工作区")
+    formula_parser.add_argument(
+        "--expected-revision",
+        type=int,
+        required=True,
+        help="状态变更请求依据的当前修订号",
+    )
+    formula_parser.add_argument(
+        "--idempotency-key",
+        required=True,
+        help="用于安全重试的稳定幂等键",
+    )
+    formula_parser.add_argument("--character", required=True, help="角色稳定标识")
+    formula_parser.add_argument("--formula", required=True, help="公式稳定标识")
+    formula_parser.add_argument(
+        "--inputs",
+        type=_formula_inputs,
+        required=True,
+        help="带单位的公式输入 JSON object",
+    )
+    formula_parser.add_argument(
+        "--modifiers",
+        type=_formula_modifiers,
+        default=[],
+        help="具名修正项 JSON object array",
     )
     rules_query = subcommands.add_parser("rules-query", help="定向查询固定规则章节库")
     rules_query.add_argument("--library", type=Path, default=None)
@@ -326,6 +400,27 @@ def main(arguments: Sequence[str] | None = None) -> int:
         except FacadeError as error:
             return _report_error(error)
         print(json.dumps(message_payload, ensure_ascii=False, sort_keys=True))
+        return 0
+    if options.command == "recalculate":
+        try:
+            formula_update = recalculate_character_derived_value(
+                options.workspace,
+                expected_revision=options.expected_revision,
+                idempotency_key=options.idempotency_key,
+                character_id=options.character,
+                formula_id=options.formula,
+                inputs=options.inputs,
+                modifiers=options.modifiers,
+            )
+        except FacadeError as error:
+            return _report_error(error)
+        print(
+            json.dumps(
+                _formula_update_success_payload(options.workspace, formula_update),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
         return 0
     if options.command == "rules-query":
         query_values = {

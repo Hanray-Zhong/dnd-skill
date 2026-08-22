@@ -8,6 +8,7 @@ import re
 from typing import Any, cast
 
 from dnd_5e.errors import FacadeError
+from dnd_5e.formulas.catalog import FormulaCatalog
 from dnd_5e.rules.resolution import (
     build_specific_exception_decision,
     validate_rule_exceptions,
@@ -23,6 +24,7 @@ _MANIFEST_IDENTITY_KEYS = (
     "coverage_sha256",
     "blocked_sha256",
     "exceptions_sha256",
+    "formulas_sha256",
     "asset_count",
     "category_counts",
     "distribution",
@@ -52,6 +54,7 @@ _METADATA_HASHES = {
     "coverage_sha256": "coverage.json",
     "blocked_sha256": "blocked.json",
     "exceptions_sha256": "exceptions.json",
+    "formulas_sha256": "formulas.json",
 }
 
 
@@ -181,6 +184,7 @@ class RulesLibrary:
                     "coverage.json",
                     "blocked.json",
                     "exceptions.json",
+                    "formulas.json",
                 )
             }
             manifest_content = (resolved_root / "library.json").read_bytes()
@@ -197,6 +201,7 @@ class RulesLibrary:
         self._items = self._validate_index(index, manifest)
         self._validate_coverage(coverage, self._items)
         self._exceptions = validate_rule_exceptions(exceptions, self._items)
+        self._formula_catalog = FormulaCatalog(resolved_root / "formulas.json")
         self._version = str(manifest["library_version"])
         self._sha256 = str(manifest["library_sha256"])
 
@@ -354,6 +359,10 @@ class RulesLibrary:
     @property
     def sha256(self) -> str:
         return self._sha256
+
+    @property
+    def formula_catalog(self) -> FormulaCatalog:
+        return self._formula_catalog
 
     def _load_asset(self, item: dict[str, object]) -> dict[str, object]:
         relative_path = item["path"]

@@ -70,6 +70,7 @@ def _validated_library_files(library_root: Path) -> tuple[dict[str, Any], dict[s
         "coverage.json",
         "blocked.json",
         "exceptions.json",
+        "formulas.json",
     }
     for raw_item in raw_items:
         if not isinstance(raw_item, dict):
@@ -95,6 +96,7 @@ def _validated_library_files(library_root: Path) -> tuple[dict[str, Any], dict[s
         ("coverage_sha256", "coverage.json"),
         ("blocked_sha256", "blocked.json"),
         ("exceptions_sha256", "exceptions.json"),
+        ("formulas_sha256", "formulas.json"),
     ):
         if manifest.get(manifest_key) != _sha256(library_contents[relative_path]):
             raise BuildError("invalid_rules_library", "规则章节库清单哈希不一致。")
