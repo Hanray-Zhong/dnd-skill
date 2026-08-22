@@ -9,6 +9,7 @@ from typing import Any
 
 from dnd_5e.catalog import public_skill_catalog
 from dnd_5e.errors import FacadeError
+from dnd_5e.rules import RulesLibrary
 from dnd_5e.state.types import CampaignConfigUpdate, CampaignSummary
 from dnd_5e.workspace import (
     configure_campaign_difficulty,
@@ -31,6 +32,16 @@ def _initial_config(value: str) -> dict[str, object]:
         raise argparse.ArgumentTypeError(f"初始配置不是有效 JSON：{error}") from error
     if not isinstance(parsed, dict):
         raise argparse.ArgumentTypeError("初始配置必须是 JSON object")
+    return parsed
+
+
+def _positive_integer(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("查询上限必须是正整数") from error
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("查询上限必须是正整数")
     return parsed
 
 
@@ -128,6 +139,13 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="新的难度策略",
     )
+    rules_query = subcommands.add_parser("rules-query", help="定向查询固定规则章节库")
+    rules_query.add_argument("--library", type=Path, default=None)
+    query_kind = rules_query.add_mutually_exclusive_group(required=True)
+    query_kind.add_argument("--id")
+    query_kind.add_argument("--alias")
+    query_kind.add_argument("--topic")
+    rules_query.add_argument("--limit", type=_positive_integer, default=20)
     return parser
 
 
@@ -182,6 +200,42 @@ def main(arguments: Sequence[str] | None = None) -> int:
         print(
             json.dumps(
                 _config_update_success_payload(options.workspace, update),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return 0
+    if options.command == "rules-query":
+        query_values = {
+            "id": options.id,
+            "alias": options.alias,
+            "topic": options.topic,
+        }
+        query_kind, query_value = next(
+            (kind, value)
+            for kind, value in query_values.items()
+            if isinstance(value, str)
+        )
+        try:
+            library = RulesLibrary(options.library)
+            rules = library.query(
+                kind=query_kind,
+                value=query_value,
+                limit=options.limit,
+            )
+        except FacadeError as error:
+            return _report_error(error)
+        print(
+            json.dumps(
+                {
+                    "ok": True,
+                    "query": {"kind": query_kind, "value": query_value},
+                    "library": {
+                        "version": library.version,
+                        "sha256": library.sha256,
+                    },
+                    "rules": rules,
+                },
                 ensure_ascii=False,
                 sort_keys=True,
             )

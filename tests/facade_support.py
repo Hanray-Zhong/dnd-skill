@@ -109,3 +109,14 @@ def run_configure_fault(
         text=True,
         check=False,
     )
+
+
+def run_rules_builder(*arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", "tools.rules_library", *arguments],
+        cwd=REPOSITORY_ROOT,
+        env=_facade_environment(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )

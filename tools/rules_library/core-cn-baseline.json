@@ -1,0 +1,481 @@
+{
+  "format": "dnd-rules-baseline-v1",
+  "library_version": "core-cn-2014-v1-local-preview",
+  "sources": [
+    {
+      "id": "phb-cn-1.72",
+      "title": "《玩家手册》中译 v1.72",
+      "version": "1.72",
+      "path": "5e/5e译稿/5eDnD_玩家手册PHB_中译v1.72版.pdf",
+      "sha256": "0f6ce6167a9812d43a4942a4754ce6ae6b53e5f6b98f1e59c6491f3ca46d87b3",
+      "format": "pdf",
+      "left_margin": 56.7,
+      "right_margin": 308.8,
+      "margin_tolerance": 13,
+      "minimum_heading_size": 9.5,
+      "table_entities": [
+        {
+          "parent_title": "护甲表Armor",
+          "category": "armor",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "武器表Weapons",
+          "category": "weapon",
+          "title_column": 0,
+          "minimum_populated_cells": 3
+        },
+        {
+          "parent_title": "冒险用品表Adventuring Gear",
+          "category": "equipment",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "容器容量Container Capacity",
+          "category": "equipment",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "工具表Tools",
+          "category": "tool",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "坐骑和其他动物Mounts and Other Animals",
+          "category": "mount",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "鞍具、挽具及陆运载具Tack, Harness, and Drawn Vehicles",
+          "category": "equipment",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "水运载具Waterborne Vehicles",
+          "category": "vehicle",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "生活开支Lifestyle Expenses",
+          "category": "service",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "饮食与住宿Food, Drink, and Lodging",
+          "category": "service",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "服务Services",
+          "category": "service",
+          "title_column": 0,
+          "minimum_populated_cells": 2
+        },
+        {
+          "parent_title": "贸易商品Trade Goods",
+          "category": "trade_good",
+          "title_column": 1,
+          "minimum_populated_cells": 2
+        }
+      ],
+      "visual_only_pages": [
+        10,
+        16,
+        25,
+        44,
+        120,
+        126,
+        142,
+        156,
+        162,
+        172,
+        180,
+        184,
+        188,
+        200,
+        206,
+        232,
+        247,
+        268,
+        286,
+        303
+      ],
+      "entity_regions": [
+        {
+          "pages": [211, 289],
+          "category": "spell",
+          "detector": "spell_fields"
+        },
+        {
+          "pages": [290, 292],
+          "category": "condition",
+          "detector": "outline",
+          "outline_level": 1
+        },
+        {
+          "pages": [304, 311],
+          "category": "monster",
+          "detector": "outline",
+          "outline_level": 1
+        }
+      ],
+      "expected": {
+        "page_count": 313,
+        "outline_count": 1712,
+        "asset_count": 2066,
+        "category_counts": {
+          "armor": 13,
+          "equipment": 126,
+          "semantic_section": 1383,
+          "spell": 362,
+          "condition": 15,
+          "monster": 31,
+          "mount": 8,
+          "service": 34,
+          "tool": 38,
+          "trade_good": 13,
+          "vehicle": 6,
+          "weapon": 37
+        },
+        "text_characters": 467447,
+        "structure_counts": {
+          "table": 123,
+          "sidebar": 54,
+          "footnote": 0
+        },
+        "parser_versions": {
+          "pdfplumber": "0.11.10",
+          "pypdf": "6.16.1"
+        },
+        "asset_inventory_sha256": "95acce5f8290ad98e6a9ce70993de3e0e192fa381b96c64e75c34ae2b3e7f629"
+      },
+      "coverage": {
+        "matrix_id": "PHB-03",
+        "owner": "dnd-5e-rules",
+        "collaborators": [
+          "dnd-5e-character",
+          "dnd-5e-session",
+          "dnd-5e-combat"
+        ],
+        "authoritative_state": "规则章节、规则实体、来源与激活条件",
+        "observable_result": "按固定来源返回可追溯的玩家规则结论",
+        "failure_path": "来源或内容不完整时停止权威裁定并报告缺口",
+        "acceptance_scenario": "按稳定 ID、别名或主题定向查询《玩家手册》规则"
+      },
+      "coverage_by_category": {
+        "spell": {
+          "matrix_id": "PHB-10",
+          "owner": "dnd-5e-rules",
+          "collaborators": ["dnd-5e-character", "dnd-5e-session", "dnd-5e-combat"]
+        },
+        "condition": {
+          "matrix_id": "PHB-11",
+          "owner": "dnd-5e-rules",
+          "collaborators": ["dnd-5e-character", "dnd-5e-session", "dnd-5e-combat", "dnd-5e-campaign-state"]
+        },
+        "monster": {
+          "matrix_id": "PHB-10",
+          "owner": "dnd-5e-rules",
+          "collaborators": ["dnd-5e-combat", "dnd-5e-adventure"]
+        }
+      },
+      "coverage_routes": [
+        {"pages": [11, 16], "override": {"matrix_id": "PHB-01", "owner": "dnd-5e-character", "collaborators": ["dnd-5e-rules", "dnd-5e-campaign-state"]}},
+        {"pages": [17, 142], "override": {"matrix_id": "PHB-02", "owner": "dnd-5e-character", "collaborators": ["dnd-5e-rules", "dnd-5e-world"]}},
+        {"pages": [143, 161], "override": {"matrix_id": "PHB-04", "owner": "dnd-5e-character", "collaborators": ["dnd-5e-rules", "dnd-5e-campaign-state"]}},
+        {"pages": [162, 180], "override": {"matrix_id": "PHB-01", "owner": "dnd-5e-character", "collaborators": ["dnd-5e-rules", "dnd-5e-campaign-state"]}},
+        {"pages": [181, 188], "override": {"matrix_id": "PHB-05", "owner": "dnd-5e-session", "collaborators": ["dnd-5e-rules", "dnd-5e-world", "dnd-5e-scene"]}},
+        {"pages": [189, 198], "override": {"matrix_id": "PHB-08", "owner": "dnd-5e-combat", "collaborators": ["dnd-5e-rules", "dnd-5e-scene", "dnd-5e-campaign-state"]}},
+        {"pages": [199, 210], "override": {"matrix_id": "PHB-09", "owner": "dnd-5e-rules", "collaborators": ["dnd-5e-character", "dnd-5e-session", "dnd-5e-combat"]}}
+      ],
+      "rights": {
+        "status": "not_reviewed",
+        "rights_holder": null,
+        "basis": null,
+        "transformation_scope": null,
+        "distribution_scope": null,
+        "attribution": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "dmg-cn-1.1",
+      "title": "《城主指南》中译 v1.1",
+      "version": "1.1",
+      "path": "5e/5e译稿/5eDnD_城主指南_中译v1.1.pdf",
+      "sha256": "ffbbc1ec5bfde9a082ed37549a712c5d4f2a7ddbcb9cc64d4d17461038f2ccd2",
+      "format": "pdf",
+      "left_margin": 59.5,
+      "right_margin": 309.1,
+      "margin_tolerance": 9,
+      "minimum_heading_size": 9.5,
+      "visual_only_pages": [],
+      "entity_regions": [
+        {
+          "pages": [118, 166],
+          "category": "magic_item",
+          "detector": "margin_heading",
+          "minimum_size": 9.5,
+          "maximum_size": 10.1
+        },
+        {
+          "pages": [167, 170],
+          "category": "reward",
+          "detector": "margin_heading",
+          "minimum_size": 9.5,
+          "maximum_size": 10.1
+        }
+      ],
+      "expected": {
+        "page_count": 236,
+        "outline_count": 102,
+        "asset_count": 1086,
+        "category_counts": {
+          "semantic_section": 768,
+          "magic_item": 282,
+          "reward": 36
+        },
+        "text_characters": 461938,
+        "structure_counts": {
+          "table": 282,
+          "sidebar": 23,
+          "footnote": 0
+        },
+        "parser_versions": {
+          "pdfplumber": "0.11.10",
+          "pypdf": "6.16.1"
+        },
+        "asset_inventory_sha256": "18065119b6093a25126c7fec8cf0bc474ca0cce0c49cfe0813241d801cf0d303"
+      },
+      "coverage": {
+        "matrix_id": "DMG-11",
+        "owner": "dnd-5e-rules",
+        "collaborators": [
+          "dnd-5e-adventure",
+          "dnd-5e-session",
+          "dnd-5e-world"
+        ],
+        "authoritative_state": "规则章节、物品实体、变体与激活条件",
+        "observable_result": "按固定来源返回可追溯的主持规则结论",
+        "failure_path": "可选项未启用或来源不完整时拒绝应用",
+        "acceptance_scenario": "按主题查询《城主指南》规则并保持可选项边界"
+      },
+      "coverage_by_category": {
+        "magic_item": {
+          "matrix_id": "DMG-08",
+          "owner": "dnd-5e-adventure",
+          "collaborators": ["dnd-5e-rules", "dnd-5e-character", "dnd-5e-campaign-state"]
+        },
+        "reward": {
+          "matrix_id": "DMG-10",
+          "owner": "dnd-5e-adventure",
+          "collaborators": ["dnd-5e-character", "dnd-5e-campaign-state"]
+        }
+      },
+      "coverage_routes": [
+        {"pages": [8, 70], "override": {"matrix_id": "DMG-01", "owner": "dnd-5e-world", "collaborators": ["dnd-5e-rules", "dnd-5e-scene", "dnd-5e-campaign-state"]}},
+        {"pages": [71, 99], "override": {"matrix_id": "DMG-02", "owner": "dnd-5e-adventure", "collaborators": ["dnd-5e-world", "dnd-5e-module-import"]}},
+        {"pages": [100, 170], "override": {"matrix_id": "DMG-08", "owner": "dnd-5e-adventure", "collaborators": ["dnd-5e-rules", "dnd-5e-character", "dnd-5e-campaign-state"]}},
+        {"pages": [171, 216], "override": {"matrix_id": "DMG-09", "owner": "dnd-5e-session", "collaborators": ["dnd-5e-rules", "dnd-5e-combat", "dnd-5e-scene", "dnd-5e-world"]}},
+        {"pages": [217, 227], "override": {"matrix_id": "DMG-05", "owner": "dnd-5e-adventure", "collaborators": ["dnd-5e-session", "dnd-5e-combat", "dnd-5e-scene", "dnd-5e-rules"]}},
+        {"pages": [228, 236], "override": {"matrix_id": "DMG-03", "owner": "dnd-5e-adventure", "collaborators": ["dnd-5e-rules", "dnd-5e-world", "dnd-5e-combat"]}}
+      ],
+      "rights": {
+        "status": "not_reviewed",
+        "rights_holder": null,
+        "basis": null,
+        "transformation_scope": null,
+        "distribution_scope": null,
+        "attribution": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "mm-cn-1.3.2",
+      "title": "《怪物图鉴》中译 v1.3.2 配图版",
+      "version": "1.3.2",
+      "path": "5e/5e译稿/5eDnD_怪物图鉴MM_中译 v1.3.2（配图）.pdf",
+      "sha256": "368585a9bf5f1d961a805ebae023436ee5b1a269b2679f78211b87451eff3617",
+      "format": "pdf",
+      "left_margin": 52.6,
+      "right_margin": 313.7,
+      "margin_tolerance": 10,
+      "minimum_heading_size": 9.5,
+      "font_top_adjustments": {
+        "AGEVIG+Cambria2": -19.48,
+        "CNDHKC+Cambria23": -19.48,
+        "DEYNYA+Cambria12": -19.48,
+        "DKDNYA+Cambria8": -19.48,
+        "DUNNYA+Cambria2": -19.48,
+        "EASTMY+Cambria5": -19.48,
+        "ERSTMY+Cambria4": -18.12,
+        "HZRLCS+Cambria27": -19.48,
+        "IPBRQQ+Cambria28": -19.48,
+        "LOKJGK+Cambria17": -19.48,
+        "LTFJGK+Cambria30": -19.48,
+        "NJEGIG+Cambria": -19.48,
+        "NPZVIG+Cambria22": -19.48,
+        "NSZVIG+Cambria10": -19.48,
+        "PQYHKC+Cambria3": -19.48,
+        "SCCZAW+Cambria25": -19.48,
+        "SMCZAW+Cambria7": -19.48,
+        "UGRLCS+Cambria9": -19.48,
+        "VPGRQQ+Cambria19": -19.48,
+        "VTLRQQ+Cambria13": -19.48,
+        "WOLXEO+Cambria11": -19.48,
+        "XJADSM+Cambria15": -19.48,
+        "XOFDSM+Cambria18": -19.48,
+        "XPADSM+Cambria6": -19.48,
+        "ZLUPUI+Cambria16": -19.48,
+        "ZRPPUI+Cambria21": -19.48
+      },
+      "visual_only_pages": [221, 263, 275],
+      "entity_regions": [
+        {
+          "pages": [11, 337],
+          "category": "monster",
+          "detector": "stat_block"
+        }
+      ],
+      "cid_overrides": {
+        "ZLUPUI+SimSun14": {
+          "60": "仙",
+          "102": "俱",
+          "260": "嗡",
+          "276": "坍",
+          "400": "廷",
+          "409": "弧",
+          "483": "抖",
+          "515": "描",
+          "561": "晶",
+          "631": "氧",
+          "639": "沮",
+          "772": "碳",
+          "876": "臣",
+          "898": "萧",
+          "916": "蜇",
+          "1104": "靛",
+          "1120": "颧",
+          "1124": "饪",
+          "1128": "饶",
+          "1132": "驮"
+        },
+        "ERSTMY+SimSun3": {
+          "278": "孙",
+          "384": "怂",
+          "395": "恿",
+          "409": "懿",
+          "452": "捻",
+          "459": "描",
+          "497": "昧",
+          "505": "暧",
+          "594": "渣",
+          "617": "熏",
+          "655": "盐",
+          "752": "肺",
+          "916": "镂",
+          "962": "馏"
+        },
+        "YGKJGK+SimHei13": {
+          "37": "则",
+          "38": "刻",
+          "42": "匠",
+          "51": "员",
+          "76": "就",
+          "153": "若",
+          "155": "蔑",
+          "160": "裕",
+          "173": "趾",
+          "177": "遥",
+          "185": "雅",
+          "186": "雕"
+        },
+        "NSZVIG+SimSun9": {
+          "26": "丫",
+          "97": "侠",
+          "213": "吨",
+          "285": "奎",
+          "453": "扉",
+          "480": "拽",
+          "496": "描",
+          "549": "曙",
+          "640": "渣",
+          "645": "滔",
+          "651": "漾",
+          "779": "绒",
+          "788": "缕",
+          "833": "腻",
+          "876": "蚊",
+          "884": "螂",
+          "886": "螳",
+          "909": "觑",
+          "1019": "酿"
+        }
+      },
+      "cid_override_evidence": "权威 PDF 页面 Vision OCR、坐标对齐与字形目视复核",
+      "expected": {
+        "page_count": 337,
+        "outline_count": 8,
+        "asset_count": 1329,
+        "category_counts": {
+          "semantic_section": 1017,
+          "monster": 312
+        },
+        "text_characters": 487722,
+        "structure_counts": {
+          "table": 11,
+          "sidebar": 370,
+          "footnote": 0
+        },
+        "parser_versions": {
+          "pdfplumber": "0.11.10",
+          "pypdf": "6.16.1"
+        },
+        "asset_inventory_sha256": "8602f6f45bcf3e88c8507bd8a6f71659f62b2d9e1e2a84391c50312d11167d9b"
+      },
+      "coverage": {
+        "matrix_id": "MM-05",
+        "owner": "dnd-5e-world",
+        "collaborators": [
+          "dnd-5e-adventure",
+          "dnd-5e-combat",
+          "dnd-5e-world"
+        ],
+        "authoritative_state": "怪物实体、规则来源、资料板与激活条件",
+        "observable_result": "按固定来源返回完整且可追溯的怪物规则资料",
+        "failure_path": "资料板字段或来源缺失时进入失败流程而不补写",
+        "acceptance_scenario": "按怪物别名查询资料板、能力和来源"
+      },
+      "coverage_by_category": {
+        "monster": {
+          "matrix_id": "MM-01",
+          "owner": "dnd-5e-rules",
+          "collaborators": ["dnd-5e-adventure", "dnd-5e-combat", "dnd-5e-world"]
+        }
+      },
+      "coverage_routes": [
+        {"title_keywords": ["施法", "Spellcasting"], "override": {"matrix_id": "MM-03", "owner": "dnd-5e-rules", "collaborators": ["dnd-5e-combat", "dnd-5e-adventure"]}},
+        {"title_keywords": ["传奇", "巢穴", "区域效应", "Legendary", "Lair", "Regional Effects"], "override": {"matrix_id": "MM-04", "owner": "dnd-5e-combat", "collaborators": ["dnd-5e-world", "dnd-5e-adventure", "dnd-5e-scene", "dnd-5e-rules"]}},
+        {"title_keywords": ["动作", "Actions", "Multiattack", "攻击"], "override": {"matrix_id": "MM-02", "owner": "dnd-5e-combat", "collaborators": ["dnd-5e-rules", "dnd-5e-campaign-state"]}}
+      ],
+      "rights": {
+        "status": "not_reviewed",
+        "rights_holder": null,
+        "basis": null,
+        "transformation_scope": null,
+        "distribution_scope": null,
+        "attribution": null,
+        "evidence": null
+      }
+    }
+  ]
+}
