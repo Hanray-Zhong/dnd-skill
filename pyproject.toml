@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dnd-5e-skill-suite"
+version = "0.1.0"
+description = "本地优先的 D&D 5E 跑团 Skill Suite"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+dnd-5e = "dnd_5e.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/dnd-5e-skill-suite/skills/dnd-5e" = ["skills/dnd-5e/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-adventure" = ["skills/dnd-5e-adventure/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-campaign-start" = ["skills/dnd-5e-campaign-start/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-campaign-state" = ["skills/dnd-5e-campaign-state/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-character" = ["skills/dnd-5e-character/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-combat" = ["skills/dnd-5e-combat/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-module-import" = ["skills/dnd-5e-module-import/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-rules" = ["skills/dnd-5e-rules/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-scene" = ["skills/dnd-5e-scene/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-session" = ["skills/dnd-5e-session/SKILL.md"]
+"share/dnd-5e-skill-suite/skills/dnd-5e-world" = ["skills/dnd-5e-world/SKILL.md"]
+
+[tool.mypy]
+files = ["src", "tests"]
+mypy_path = "src"
+python_version = "3.11"
+strict = true
