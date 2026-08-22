@@ -12,6 +12,21 @@ from tests.test_rules_build import (
 )
 
 
+def verified_rule_exception() -> dict[str, str]:
+    return {
+        "id": "syn-starlight-overrides-general",
+        "specific_rule_alias": "星光术",
+        "general_rule_alias": "自有规则",
+        "scope": "星光术对有遮蔽目标的影响",
+        "general_value": "受到星光术影响",
+        "specific_value": "不受影响",
+        "general_evidence": "一般规则：有遮蔽的目标会受到星光术影响。",
+        "specific_evidence": "跨页部分保留例外：有遮蔽的目标不受影响。",
+        "review_status": "verified",
+        "review_evidence": "Issue #5 合成验收",
+    }
+
+
 def run_synthetic_library_build(
     root: Path,
     *,

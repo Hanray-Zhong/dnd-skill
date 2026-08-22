@@ -6,23 +6,12 @@ import tempfile
 import unittest
 
 from tests.facade_support import run_facade
-from tests.rules_support import build_synthetic_library, run_synthetic_library_build
+from tests.rules_support import (
+    build_synthetic_library,
+    run_synthetic_library_build,
+    verified_rule_exception,
+)
 from tests.test_rules_build import _synthetic_fixture
-
-
-def _verified_rule_exception() -> dict[str, str]:
-    return {
-        "id": "syn-starlight-overrides-general",
-        "specific_rule_alias": "星光术",
-        "general_rule_alias": "自有规则",
-        "scope": "星光术对有遮蔽目标的影响",
-        "general_value": "受到星光术影响",
-        "specific_value": "不受影响",
-        "general_evidence": "一般规则：有遮蔽的目标会受到星光术影响。",
-        "specific_evidence": "跨页部分保留例外：有遮蔽的目标不受影响。",
-        "review_status": "verified",
-        "review_evidence": "Issue #5 合成验收",
-    }
 
 
 class RulesQueryFacadeTests(unittest.TestCase):
@@ -269,7 +258,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 "跨页部分保留例外：有遮蔽的目标不受影响。"
             )
             fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
-            exception = _verified_rule_exception()
+            exception = verified_rule_exception()
             library = build_synthetic_library(
                 root,
                 fixture=fixture,
@@ -383,7 +372,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 "跨页部分保留例外：有遮蔽的目标不受影响。"
             )
             fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
-            exception = _verified_rule_exception()
+            exception = verified_rule_exception()
             exception["general_value"] = "default"
             exception["specific_value"] = "spell"
             exception["general_evidence"] = '"rule_status":"default"'
@@ -415,7 +404,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
             library, result = run_synthetic_library_build(
                 root,
                 fixture=fixture,
-                rule_exceptions=[_verified_rule_exception()],
+                rule_exceptions=[verified_rule_exception()],
             )
             error = json.loads(result.stderr) if result.stderr else None
 
@@ -440,7 +429,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
             library, result = run_synthetic_library_build(
                 root,
                 fixture=fixture,
-                rule_exceptions=[_verified_rule_exception()],
+                rule_exceptions=[verified_rule_exception()],
             )
             error = json.loads(result.stderr) if result.stderr else None
 

@@ -8,6 +8,7 @@ import unittest
 from typing import Callable
 
 from tests.facade_support import run_facade, run_rules_builder
+from tests.rules_support import build_synthetic_library, verified_rule_exception
 from tests.test_rules_build import (
     _rewrite_source_and_hash,
     _synthetic_fixture,
@@ -159,6 +160,39 @@ class RulesQualityGateTests(unittest.TestCase):
                 self.assertEqual(0, build.returncode, msg=build.stderr)
                 mutate(library)
                 _expect_invalid_query(library)
+
+    def test_runtime_rejects_an_exception_targeting_an_index_only_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            fixture = _synthetic_fixture()
+            fixture["pages"][0]["blocks"][1]["text"] = (
+                "一般规则：有遮蔽的目标会受到星光术影响。"
+            )
+            fixture["pages"][1]["blocks"][0]["text"] = (
+                "跨页部分保留例外：有遮蔽的目标不受影响。"
+            )
+            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
+            library = build_synthetic_library(
+                root,
+                fixture=fixture,
+                rule_exceptions=[verified_rule_exception()],
+            )
+            index_path = library / "index.json"
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            general_rule = next(
+                item
+                for item in index["items"]
+                if item["category"] == "semantic_section"
+            )
+            general_rule["extraction_status"] = "index_only"
+            index_hash = _write_json(index_path, index)
+            manifest_path = library / "library.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["index_sha256"] = index_hash
+            _write_json(manifest_path, manifest)
+            _refresh_library_identity(library)
+
+            _expect_invalid_query(library)
 
 
 def _mark_distribution_failed(library: Path) -> None:
