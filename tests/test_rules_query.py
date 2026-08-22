@@ -4,36 +4,25 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from typing import Any
 
-from tests.facade_support import run_facade, run_rules_builder
-from tests.test_rules_build import (
-    _rewrite_source_and_hash,
-    _synthetic_fixture,
-    _write_synthetic_baseline,
-)
+from tests.facade_support import run_facade
+from tests.rules_support import build_synthetic_library, run_synthetic_library_build
+from tests.test_rules_build import _synthetic_fixture
 
 
-def _build_synthetic_library(
-    root: Path,
-    fixture: dict[str, Any] | None = None,
-) -> Path:
-    baseline, reference_root = _write_synthetic_baseline(root)
-    if fixture is not None:
-        _rewrite_source_and_hash(baseline, reference_root, fixture)
-    library = root / "library"
-    build = run_rules_builder(
-        "build",
-        "--baseline",
-        str(baseline),
-        "--reference-root",
-        str(reference_root),
-        "--output",
-        str(library),
-    )
-    if build.returncode != 0:
-        raise AssertionError(build.stderr)
-    return library
+def _verified_rule_exception() -> dict[str, str]:
+    return {
+        "id": "syn-starlight-overrides-general",
+        "specific_rule_alias": "星光术",
+        "general_rule_alias": "自有规则",
+        "scope": "星光术对有遮蔽目标的影响",
+        "general_value": "受到星光术影响",
+        "specific_value": "不受影响",
+        "general_evidence": "一般规则：有遮蔽的目标会受到星光术影响。",
+        "specific_evidence": "跨页部分保留例外：有遮蔽的目标不受影响。",
+        "review_status": "verified",
+        "review_evidence": "Issue #5 合成验收",
+    }
 
 
 class RulesQueryFacadeTests(unittest.TestCase):
@@ -42,7 +31,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
             root = Path(temporary_directory)
             fixture = _synthetic_fixture()
             fixture["pages"][0]["blocks"][2]["references"] = []
-            library = _build_synthetic_library(root, fixture)
+            library = build_synthetic_library(root, fixture=fixture)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             unrelated = next(
                 item for item in index["items"] if item["category"] == "condition"
@@ -139,7 +128,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
     def test_stable_id_and_topic_queries_have_bounded_results(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            library = _build_synthetic_library(root)
+            library = build_synthetic_library(root)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             spell_id = next(
                 item["id"] for item in index["items"] if item["category"] == "spell"
@@ -187,7 +176,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
     def test_general_default_rule_is_returned_without_an_exception(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            library = _build_synthetic_library(root)
+            library = build_synthetic_library(root)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             general_rule_id = next(
                 item["id"]
@@ -235,7 +224,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
                     {"kind": "paragraph", "text": "星辉棱镜是一件自有测试物品。"},
                 ]
             )
-            library = _build_synthetic_library(root, fixture)
+            library = build_synthetic_library(root, fixture=fixture)
 
             for alias, category in (
                 ("星光术", "spell"),
@@ -280,7 +269,12 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 "跨页部分保留例外：有遮蔽的目标不受影响。"
             )
             fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
-            library = _build_synthetic_library(root, fixture)
+            exception = _verified_rule_exception()
+            library = build_synthetic_library(
+                root,
+                fixture=fixture,
+                rule_exceptions=[exception],
+            )
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             general_rule = next(
                 item
@@ -292,11 +286,14 @@ class RulesQueryFacadeTests(unittest.TestCase):
             )
             self.assertIn(general_rule["id"], entity["cross_references"])
             conflict = {
-                "scope": "星光术对有遮蔽目标的影响",
-                "general_value": "受到星光术影响",
-                "specific_value": "不受影响",
-                "general_evidence": "一般规则：有遮蔽的目标会受到星光术影响。",
-                "specific_evidence": "跨页部分保留例外：有遮蔽的目标不受影响。",
+                key: exception[key]
+                for key in (
+                    "scope",
+                    "general_value",
+                    "specific_value",
+                    "general_evidence",
+                    "specific_evidence",
+                )
             }
 
             result = run_facade(
@@ -307,8 +304,6 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 "星光术",
                 "--general-rule-id",
                 general_rule["id"],
-                "--conflict",
-                json.dumps(conflict, ensure_ascii=False),
             )
             payload = json.loads(result.stdout) if result.stdout else None
             rules = payload.get("rules", []) if isinstance(payload, dict) else []
@@ -329,6 +324,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
                     "reason": "三宝书具体实体说明优先于一般默认规则。",
                     "applied_rule_id": entity["id"],
                     "overridden_rule_ids": [general_rule["id"]],
+                    "exception_id": exception["id"],
                     "conflict": conflict,
                     "precedence": [
                         {
@@ -351,7 +347,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
             root = Path(temporary_directory)
             fixture = _synthetic_fixture()
             fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
-            library = _build_synthetic_library(root, fixture)
+            library = build_synthetic_library(root, fixture=fixture)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             general_rule_id = next(
                 item["id"]
@@ -372,82 +368,61 @@ class RulesQueryFacadeTests(unittest.TestCase):
 
             self.assertEqual(2, result.returncode)
             assert isinstance(error, dict)
-            self.assertEqual("rule_conflict_required", error["error"]["code"])
+            self.assertEqual("rule_exception_not_found", error["error"]["code"])
 
-    def test_specific_entity_resolution_rejects_unanchored_conflict_evidence(
+    def test_specific_entity_resolution_rejects_frontmatter_as_conflict_evidence(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             fixture = _synthetic_fixture()
-            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
-            library = _build_synthetic_library(root, fixture)
-            index = json.loads((library / "index.json").read_text(encoding="utf-8"))
-            general_rule_id = next(
-                item["id"]
-                for item in index["items"]
-                if item["category"] == "semantic_section"
+            fixture["pages"][0]["blocks"][1]["text"] = (
+                "一般规则：有遮蔽的目标会受到星光术影响。"
             )
-            conflict = {
-                "scope": "无法定位的测试冲突",
-                "general_value": "适用范围",
-                "specific_value": "从不适用",
-                "general_evidence": "本章内容由测试作者原创，并明确说明适用范围。",
-                "specific_evidence": "不存在的规则证据：从不适用。",
-            }
+            fixture["pages"][1]["blocks"][0]["text"] = (
+                "跨页部分保留例外：有遮蔽的目标不受影响。"
+            )
+            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
+            exception = _verified_rule_exception()
+            exception["general_value"] = "default"
+            exception["specific_value"] = "spell"
+            exception["general_evidence"] = '"rule_status":"default"'
+            exception["specific_evidence"] = '"category":"spell"'
 
-            result = run_facade(
-                "rules-query",
-                "--library",
-                str(library),
-                "--alias",
-                "星光术",
-                "--general-rule-id",
-                general_rule_id,
-                "--conflict",
-                json.dumps(conflict, ensure_ascii=False),
+            library, result = run_synthetic_library_build(
+                root,
+                fixture=fixture,
+                rule_exceptions=[exception],
             )
             error = json.loads(result.stderr) if result.stderr else None
 
             self.assertEqual(2, result.returncode)
             assert isinstance(error, dict)
-            self.assertEqual("rule_conflict_unverified", error["error"]["code"])
+            self.assertEqual("unverified_rule_exception", error["error"]["code"])
+            self.assertFalse(library.exists())
 
     def test_specific_entity_resolution_rejects_a_missing_rule_reference(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            library = _build_synthetic_library(root)
-            index = json.loads((library / "index.json").read_text(encoding="utf-8"))
-            general_rule_id = next(
-                item["id"]
-                for item in index["items"]
-                if item["category"] == "semantic_section"
+            fixture = _synthetic_fixture()
+            fixture["pages"][0]["blocks"][1]["text"] = (
+                "一般规则：有遮蔽的目标会受到星光术影响。"
             )
-            conflict = {
-                "scope": "星光术与未关联的一般规则",
-                "general_value": "适用范围",
-                "specific_value": "不受影响",
-                "general_evidence": "本章内容由测试作者原创，并明确说明适用范围。",
-                "specific_evidence": "跨页部分保留例外：有遮蔽的目标不受影响。",
-            }
+            fixture["pages"][1]["blocks"][0]["text"] = (
+                "跨页部分保留例外：有遮蔽的目标不受影响。"
+            )
 
-            result = run_facade(
-                "rules-query",
-                "--library",
-                str(library),
-                "--alias",
-                "星光术",
-                "--general-rule-id",
-                general_rule_id,
-                "--conflict",
-                json.dumps(conflict, ensure_ascii=False),
+            library, result = run_synthetic_library_build(
+                root,
+                fixture=fixture,
+                rule_exceptions=[_verified_rule_exception()],
             )
             error = json.loads(result.stderr) if result.stderr else None
 
             self.assertEqual(2, result.returncode)
             assert isinstance(error, dict)
-            self.assertEqual("rule_scope_mismatch", error["error"]["code"])
-            self.assertNotIn("Traceback", result.stderr)
+            self.assertEqual("broken_rule_exception_reference", error["error"]["code"])
+            self.assertFalse(library.exists())
 
 
 if __name__ == "__main__":

@@ -8,7 +8,10 @@ import re
 from typing import Any, cast
 
 from dnd_5e.errors import FacadeError
-from dnd_5e.rules.resolution import build_specific_exception_decision
+from dnd_5e.rules.resolution import (
+    build_specific_exception_decision,
+    validate_rule_exceptions,
+)
 
 
 _MANIFEST_IDENTITY_KEYS = (
@@ -19,6 +22,7 @@ _MANIFEST_IDENTITY_KEYS = (
     "index_sha256",
     "coverage_sha256",
     "blocked_sha256",
+    "exceptions_sha256",
     "asset_count",
     "category_counts",
     "distribution",
@@ -47,6 +51,7 @@ _METADATA_HASHES = {
     "sources_sha256": "sources.json",
     "coverage_sha256": "coverage.json",
     "blocked_sha256": "blocked.json",
+    "exceptions_sha256": "exceptions.json",
 }
 
 
@@ -170,7 +175,13 @@ class RulesLibrary:
         try:
             contents = {
                 filename: (resolved_root / filename).read_bytes()
-                for filename in ("index.json", "sources.json", "coverage.json", "blocked.json")
+                for filename in (
+                    "index.json",
+                    "sources.json",
+                    "coverage.json",
+                    "blocked.json",
+                    "exceptions.json",
+                )
             }
             manifest_content = (resolved_root / "library.json").read_bytes()
         except OSError as error:
@@ -180,10 +191,12 @@ class RulesLibrary:
         sources = _load_json_object(contents["sources.json"])
         coverage = _load_json_object(contents["coverage.json"])
         blocked = _load_json_object(contents["blocked.json"])
+        exceptions = _load_json_object(contents["exceptions.json"])
         self._validate_manifest(manifest, contents)
         self._validate_supporting_manifests(sources, coverage, blocked)
         self._items = self._validate_index(index, manifest)
         self._validate_coverage(coverage, self._items)
+        self._exceptions = validate_rule_exceptions(exceptions, self._items)
         self._version = str(manifest["library_version"])
         self._sha256 = str(manifest["library_sha256"])
 
@@ -387,7 +400,6 @@ class RulesLibrary:
         entity_kind: str,
         entity_value: str,
         general_rule_id: str,
-        conflict: dict[str, object],
     ) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
         if entity_kind not in {"id", "alias"}:
             raise FacadeError(
@@ -435,11 +447,25 @@ class RulesLibrary:
                 "invalid_general_rule",
                 "具体实体例外只能覆盖一般默认规则。",
             )
+        entity_id = str(entity_item["id"])
+        matching_exceptions = [
+            exception
+            for exception in self._exceptions
+            if exception["specific_rule_id"] == entity_id
+            and exception["general_rule_id"] == general_rule_id
+        ]
+        if not matching_exceptions:
+            raise FacadeError(
+                "rule_exception_not_found",
+                "规则章节库没有匹配且已经复核的具体例外声明。",
+            )
+        if len(matching_exceptions) != 1:
+            raise _invalid_library()
         entity = self._load_asset(entity_item)
         general_rule = self._load_asset(general_item)
         decision = build_specific_exception_decision(
             entity=entity,
             general_rule=general_rule,
-            conflict=conflict,
+            exception=matching_exceptions[0],
         )
         return entity, general_rule, decision

@@ -23,6 +23,7 @@ _IDENTITY_KEYS = (
     "index_sha256",
     "coverage_sha256",
     "blocked_sha256",
+    "exceptions_sha256",
     "asset_count",
     "category_counts",
     "distribution",

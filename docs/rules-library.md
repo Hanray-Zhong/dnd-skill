@@ -28,11 +28,14 @@ uv run --locked --extra rules-build python -m tools.rules_library build \
 ├── sources.json
 ├── coverage.json
 ├── blocked.json
+├── exceptions.json
 ├── sections/*.md
 └── entities/*.md
 ```
 
-每个 Markdown 单元与索引项记录稳定 ID、类别、别名、适用条件、规则状态、源书、版本、源文件哈希、章节路径、PDF 页码与页标签、正向和反向交叉引用、提取状态、内容哈希及文件哈希。`sources.json` 还记录解析器版本、结构计数，并为每个 PDF 物理页记录 `generated` 或经固定基线声明的 `visual_only` 状态；未声明空页、声明失效或精确提取快照漂移都会阻止构建。`coverage.json` 为每个单元保存来源矩阵 ID、主责 Skill、协作 Skill、权威状态、可观察结果、失败路径和验收场景。
+每个 Markdown 单元与索引项记录稳定 ID、类别、别名、适用条件、规则状态、源书、版本、源文件哈希、章节路径、PDF 页码与页标签、正向和反向交叉引用、提取状态、内容哈希及文件哈希。`sources.json` 还记录解析器版本、结构计数，并为每个 PDF 物理页记录 `generated` 或经固定基线声明的 `visual_only` 状态；未声明空页、声明失效或精确提取快照漂移都会阻止构建。`coverage.json` 为每个单元保存来源矩阵 ID、主责 Skill、协作 Skill、权威状态、可观察结果、失败路径和验收场景。`exceptions.json` 保存构建期已经复核的具体实体例外，并纳入规则库身份哈希。
+
+生产基线中的 `rule_exceptions` 必须为每项例外提供稳定 ID、具体实体与一般规则别名、同一情境的有界范围、两侧不同取值、各自正文证据、`verified` 状态和复核依据。构建器必须唯一解析两侧规则，确认具体实体引用一般规则，并只在 Markdown 正文中核对证据；frontmatter 元数据不属于规则正文。任一别名歧义、引用缺失、证据不匹配或尚未复核都会阻止生成完整规则库。
 
 `uv.lock` 与生产基线共同固定 PDF 解析器版本。相同输入、锁文件、基线和构建器版本会生成相同资产与清单哈希。输入、规范化映射或提取结果变化会改变来源、索引或内容哈希。任何未复核规则、无法恢复字形、精确资产漏项、结构计数漂移、断裂引用或覆盖记录缺失都会阻止质量通过。
 
@@ -55,25 +58,12 @@ PYTHONPATH=src python -m dnd_5e rules-query \
 
 PYTHONPATH=src python -m dnd_5e rules-query \
   --library build/rules-library --alias '行动自如' \
-  --general-rule-id phb-cn-1.72-condition-d0b19d83ea08 \
-  --conflict '{"scope":"行动自如目标是否承受魔法束缚的速度归零","general_value":"速度变为 0","specific_value":"无法生效","general_evidence":"被束缚生物的速度变为 0","specific_evidence":"法术或魔法效应对其无法生效"}'
+  --general-rule-id phb-cn-1.72-condition-d0b19d83ea08
 ```
 
 `--id`、`--alias` 和 `--topic` 必须且只能指定一个。查询先验证规则库身份、内容质量、阻塞清单、叶级覆盖以及正反引用，再只打开命中的 Markdown；无关实体文件不会被读取，命中实体的文件哈希不符则拒绝返回。`review`、未知状态和仅作层级索引的 `index_only` 项不得用于权威查询。成功 JSON 包含规则库版本与哈希、结论 Markdown、适用条件、规则状态、别名、章节路径、页码、来源和交叉引用。
 
-需要裁定实体说明与一般默认规则的冲突时，以 `--id` 或 `--alias` 选择法术、状态、怪物或物品等规则实体，用 `--general-rule-id` 指定该实体已经引用的一般规则，并通过 `--conflict` 提供以下 JSON object：
-
-```json
-{
-  "scope": "冲突成立的同一情境与字段",
-  "general_value": "一般规则在该范围内的取值",
-  "specific_value": "具体实体在该范围内的不同取值",
-  "general_evidence": "可在一般规则 Markdown 中精确定位的原文",
-  "specific_evidence": "可在实体 Markdown 中精确定位的原文"
-}
-```
-
-两个取值必须不同并分别出现在对应证据中，两段证据也必须逐字存在于各自固定规则文本；普通交叉引用本身不证明冲突或覆盖。全部校验通过后，结果在 `rules` 中返回实体的结构化字段、来源和交叉引用，在 `general_rules` 中返回一般规则，并在 `resolution` 中保留冲突范围、两侧值、原文证据、所采用实体、被覆盖规则和“具体实体优先于一般默认规则”的顺序。实体名称存在歧义、实体不完整、一般规则不是已验证默认规则、缺少可追溯交叉引用或证据无法定位时，命令拒绝权威裁定。
+需要裁定实体说明与一般默认规则的冲突时，以 `--id` 或 `--alias` 选择法术、状态、怪物或物品等规则实体，并用 `--general-rule-id` 指定一般规则。运行时只接受 `exceptions.json` 中与这两个稳定标识完全匹配的已复核声明，再打开两侧 Markdown 复验正文证据。成功结果在 `rules` 中返回实体的结构化字段、来源和交叉引用，在 `general_rules` 中返回一般规则，并在 `resolution` 中保留例外声明 ID、冲突范围、两侧值、正文证据、所采用实体、被覆盖规则和“具体实体优先于一般默认规则”的顺序。普通交叉引用、frontmatter 元数据和运行时临时文本均不能授权覆盖；实体名称存在歧义、实体不完整、一般规则不是已验证默认规则、例外声明未命中或正文证据无法复验时，命令拒绝权威裁定。
 
 安装本地预览 wheel 后无需 `--library`，运行时会从包内 `dnd_5e/rule_assets/` 定位固定资产。运行时不导入 `tools.rules_library`，不解析 PDF/XLSX，也不要求 `docs/reference/` 存在。
 
