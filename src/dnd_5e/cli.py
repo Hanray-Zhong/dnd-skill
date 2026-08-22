@@ -7,10 +7,16 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from dnd_5e.campaign_start.session_zero import complete_session_zero
 from dnd_5e.catalog import public_skill_catalog
 from dnd_5e.errors import FacadeError
 from dnd_5e.rules import RulesLibrary
-from dnd_5e.state.types import CampaignConfigUpdate, CampaignSummary
+from dnd_5e.state.types import (
+    READY_TO_PLAY,
+    CampaignConfigUpdate,
+    CampaignSummary,
+    SessionZeroCompletion,
+)
 from dnd_5e.workspace import (
     configure_campaign_difficulty,
     create_campaign,
@@ -22,17 +28,25 @@ def _reject_nonstandard_json_constant(value: str) -> None:
     raise ValueError(f"不支持的 JSON 常量：{value}")
 
 
-def _initial_config(value: str) -> dict[str, object]:
+def _json_object(value: str, *, label: str) -> dict[str, object]:
     try:
         parsed: Any = json.loads(
             value,
             parse_constant=_reject_nonstandard_json_constant,
         )
     except (json.JSONDecodeError, ValueError) as error:
-        raise argparse.ArgumentTypeError(f"初始配置不是有效 JSON：{error}") from error
+        raise argparse.ArgumentTypeError(f"{label}不是有效 JSON：{error}") from error
     if not isinstance(parsed, dict):
-        raise argparse.ArgumentTypeError("初始配置必须是 JSON object")
+        raise argparse.ArgumentTypeError(f"{label}必须是 JSON object")
     return parsed
+
+
+def _initial_config(value: str) -> dict[str, object]:
+    return _json_object(value, label="初始配置")
+
+
+def _session_zero_configuration(value: str) -> dict[str, object]:
+    return _json_object(value, label="Session Zero 配置")
 
 
 def _positive_integer(value: str) -> int:
@@ -71,12 +85,13 @@ def _campaign_success_payload(
     workspace: Path,
     summary: CampaignSummary,
 ) -> dict[str, object]:
+    ready_to_play = summary.campaign_status == READY_TO_PLAY
     continuation = {
         "allowed": True,
-        "next_step": "session_zero",
-        "ready_to_play": False,
+        "next_step": "start_session" if ready_to_play else "session_zero",
+        "ready_to_play": ready_to_play,
     }
-    return {
+    payload: dict[str, object] = {
         "ok": True,
         "operation": operation,
         "campaign_id": summary.campaign_id,
@@ -86,6 +101,9 @@ def _campaign_success_payload(
         "initial_config": summary.initial_config,
         "workspace": str(workspace.resolve(strict=False)),
     }
+    if summary.audiences:
+        payload["audiences"] = summary.audiences
+    return payload
 
 
 def _config_update_success_payload(
@@ -100,6 +118,30 @@ def _config_update_success_payload(
         "idempotency_key": update.request.idempotency_key,
         "replayed": update.replayed,
         "source": update.request.source,
+    }
+    return payload
+
+
+def _session_zero_success_payload(
+    workspace: Path,
+    completion: SessionZeroCompletion,
+) -> dict[str, object]:
+    payload = _campaign_success_payload(
+        "session-zero",
+        workspace,
+        completion.summary,
+    )
+    payload["transaction"] = {
+        "audience_id": completion.request.audience_id,
+        "event_id": completion.event_id,
+        "expected_changes": {
+            "audiences": completion.request.audiences,
+            "campaign_status": READY_TO_PLAY,
+            "session_zero": completion.request.configuration,
+        },
+        "idempotency_key": completion.request.idempotency_key,
+        "replayed": completion.replayed,
+        "source": completion.request.source,
     }
     return payload
 
@@ -138,6 +180,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--difficulty",
         required=True,
         help="新的难度策略",
+    )
+    session_zero_parser = subcommands.add_parser(
+        "session-zero",
+        help="确认完整 Session Zero 配置并进入可开团状态",
+    )
+    session_zero_parser.add_argument("workspace", type=Path, help="既有战役工作区")
+    session_zero_parser.add_argument(
+        "--expected-revision",
+        type=int,
+        required=True,
+        help="状态变更请求依据的当前修订号",
+    )
+    session_zero_parser.add_argument(
+        "--idempotency-key",
+        required=True,
+        help="用于安全重试的稳定幂等键",
+    )
+    session_zero_parser.add_argument(
+        "--configuration",
+        type=_session_zero_configuration,
+        required=True,
+        help="完整且已经全员确认的 Session Zero JSON object",
     )
     rules_query = subcommands.add_parser("rules-query", help="定向查询固定规则章节库")
     rules_query.add_argument("--library", type=Path, default=None)
@@ -200,6 +264,24 @@ def main(arguments: Sequence[str] | None = None) -> int:
         print(
             json.dumps(
                 _config_update_success_payload(options.workspace, update),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return 0
+    if options.command == "session-zero":
+        try:
+            completion = complete_session_zero(
+                options.workspace,
+                expected_revision=options.expected_revision,
+                idempotency_key=options.idempotency_key,
+                configuration=options.configuration,
+            )
+        except FacadeError as error:
+            return _report_error(error)
+        print(
+            json.dumps(
+                _session_zero_success_payload(options.workspace, completion),
                 ensure_ascii=False,
                 sort_keys=True,
             )

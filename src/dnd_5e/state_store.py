@@ -4,12 +4,16 @@ import json
 from pathlib import Path
 import sqlite3
 
+from dnd_5e.state.audiences import read_audiences
+from dnd_5e.state.encoding import canonical_json
 from dnd_5e.state.types import (
+    AWAITING_SESSION_ZERO,
     CampaignConfigRequest,
     CampaignConfigUpdate,
     CampaignSummary,
     FailureInjector,
     IdempotencyConflict,
+    READY_TO_PLAY,
     RevisionConflict,
 )
 
@@ -17,7 +21,7 @@ from dnd_5e.state.types import (
 STATE_SCHEMA_NUMBER = 2
 STATE_SCHEMA_VERSION = str(STATE_SCHEMA_NUMBER)
 STATE_APPLICATION_ID = int.from_bytes(b"DND5", byteorder="big")
-INITIAL_CAMPAIGN_STATUS = "awaiting_session_zero"
+INITIAL_CAMPAIGN_STATUS = AWAITING_SESSION_ZERO
 _STATE_SCHEMA_SQL = {
     ("table", "revisions"): """
         CREATE TABLE revisions (
@@ -98,16 +102,6 @@ STATE_SCHEMA_DEFINITIONS = {
 STATE_SCHEMA_OBJECTS = frozenset(STATE_SCHEMA_DEFINITIONS)
 
 
-def _canonical_json(value: object) -> str:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        allow_nan=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    )
-
-
 def initialize_state_store(
     database_path: Path,
     *,
@@ -116,14 +110,14 @@ def initialize_state_store(
     created_at: str,
     initial_config: dict[str, object],
 ) -> CampaignSummary:
-    canonical_config = _canonical_json(initial_config)
-    entity_payload = _canonical_json(
+    canonical_config = canonical_json(initial_config)
+    entity_payload = canonical_json(
         {
             "campaign_status": INITIAL_CAMPAIGN_STATUS,
             "initial_config": initial_config,
         }
     )
-    event_payload = _canonical_json(
+    event_payload = canonical_json(
         {
             "campaign_id": campaign_id,
             "campaign_status": INITIAL_CAMPAIGN_STATUS,
@@ -150,7 +144,7 @@ def initialize_state_store(
             )
             connection.execute(
                 "INSERT INTO audiences VALUES (?, ?, ?)",
-                ("dm", "dm", "{}"),
+                ("dm", "dm", canonical_json({"members": []})),
             )
             connection.execute(
                 "INSERT INTO entities VALUES (?, ?, ?, ?, ?)",
@@ -179,6 +173,12 @@ def initialize_state_store(
         revision=1,
         campaign_status=INITIAL_CAMPAIGN_STATUS,
         initial_config=json.loads(canonical_config),
+        audiences={
+            "dm": {
+                "audience_type": "dm",
+                "members": [],
+            }
+        },
     )
 
 
@@ -190,7 +190,7 @@ def update_campaign_difficulty(
     committed_at: str,
     failure_injector: FailureInjector | None = None,
 ) -> CampaignConfigUpdate:
-    request_json = _canonical_json(
+    request_json = canonical_json(
         {
             "audience_id": request.audience_id,
             "expected_changes": {"difficulty": request.difficulty},
@@ -291,13 +291,13 @@ def update_campaign_difficulty(
 
             updated_config = {**initial_config, "difficulty": request.difficulty}
             new_revision = current.revision + 1
-            updated_payload = _canonical_json(
+            updated_payload = canonical_json(
                 {
                     "campaign_status": campaign_status,
                     "initial_config": updated_config,
                 }
             )
-            event_payload = _canonical_json(
+            event_payload = canonical_json(
                 {
                     "campaign_id": current.campaign_id,
                     "changes": {
@@ -316,7 +316,7 @@ def update_campaign_difficulty(
                 campaign_status=campaign_status,
                 initial_config=updated_config,
             )
-            result_json = _canonical_json(
+            result_json = canonical_json(
                 {
                     "campaign_id": result.campaign_id,
                     "campaign_status": result.campaign_status,
@@ -429,6 +429,8 @@ def read_state_store(database_path: Path) -> CampaignSummary:
                 f"战役状态库外键损坏：{foreign_key_violations}"
             )
 
+        audiences = read_audiences(connection)
+
         metadata = connection.execute(
             """
             SELECT metadata.campaign_id,
@@ -467,7 +469,7 @@ def read_state_store(database_path: Path) -> CampaignSummary:
     campaign_status = payload.get("campaign_status") if isinstance(payload, dict) else None
     if (
         not isinstance(initial_config, dict)
-        or campaign_status != INITIAL_CAMPAIGN_STATUS
+        or campaign_status not in {INITIAL_CAMPAIGN_STATUS, READY_TO_PLAY}
     ):
         raise sqlite3.DatabaseError("campaign 实体缺少初始配置或战役状态")
     return CampaignSummary(
@@ -476,4 +478,5 @@ def read_state_store(database_path: Path) -> CampaignSummary:
         revision=int(revision),
         campaign_status=campaign_status,
         initial_config=initial_config,
+        audiences=audiences,
     )
