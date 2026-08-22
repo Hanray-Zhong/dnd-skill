@@ -1,10 +1,11 @@
 {
-  "catalog_sha256": "932a73e5f2714ad0fe4e12f47ccbe82b50897fa86c8537117dc523952d1cc25e",
+  "catalog_sha256": "3a24911b53b8b81db67be5d6345f4352c29a9ec7e2d47ee6ac2f1b24aa913124",
   "catalog_version": "core-cn-2014-formulas-v1",
   "format": "dnd-formula-catalog-v1",
   "formula_count": 1,
   "formulas": [
     {
+      "activation_condition": "三宝书规则基线适用且输入为 1 至 30 的属性值。",
       "expression": {
         "divisor": 2,
         "kind": "subtract_divide",

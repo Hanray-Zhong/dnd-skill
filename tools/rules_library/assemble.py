@@ -14,7 +14,7 @@ from tools.rules_library.models import DraftAsset, ExtractedSource
 from tools.rules_library.text import lookup_key
 
 
-BUILD_TOOL_VERSION = "rules-library-builder-v4"
+BUILD_TOOL_VERSION = "rules-library-builder-v5"
 NORMALIZER_VERSION = "semantic-markdown-v2"
 
 

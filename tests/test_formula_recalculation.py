@@ -69,26 +69,7 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
             inputs = {
                 "ability_score": {"value": 15, "unit": "ability_score"}
             }
-            modifiers = [
-                {
-                    "id": "module-override",
-                    "operation": "override",
-                    "priority": "module_override",
-                    "source": "module:test-fixture",
-                    "target": "ability_score",
-                    "unit": "ability_score",
-                    "value": 18,
-                },
-                {
-                    "id": "enabled-rule-override",
-                    "operation": "override",
-                    "priority": "enabled_rule",
-                    "source": "character-build:test-fixture",
-                    "target": "ability_score",
-                    "unit": "ability_score",
-                    "value": 12,
-                },
-            ]
+            modifiers: list[dict[str, object]] = []
             first_request = (
                 "recalculate",
                 str(workspace),
@@ -160,16 +141,12 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
                 calculation["formula"]["source_rule_id"],
             )
             self.assertEqual(
-                {"unit": "ability_modifier", "value": 4},
+                {"unit": "ability_modifier", "value": 2},
                 calculation["result"],
             )
             self.assertEqual(inputs, calculation["inputs"])
-            self.assertEqual(
-                [modifiers[0]], calculation["modifiers"]["applied"]
-            )
-            self.assertEqual(
-                [modifiers[1]], calculation["modifiers"]["suppressed"]
-            )
+            self.assertEqual([], calculation["modifiers"]["applied"])
+            self.assertEqual([], calculation["modifiers"]["suppressed"])
             self.assertEqual(
                 [
                     "approved_table_rule",
@@ -181,10 +158,14 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
                 calculation["modifiers"]["priority_order"],
             )
             self.assertEqual(
-                ["input", "modifier", "subtract", "divide", "round"],
+                ["input", "subtract", "divide", "round"],
                 [step["operation"] for step in calculation["steps"]],
             )
             self.assertEqual("floor", calculation["steps"][-1]["method"])
+            self.assertEqual(
+                "三宝书规则基线适用且输入为 1 至 30 的属性值。",
+                calculation["formula"]["activation_condition"],
+            )
             first_transaction = first_payload["transaction"]
             self.assertEqual(False, first_transaction["replayed"])
             self.assertEqual("dnd-5e-character", first_transaction["source"])
@@ -312,19 +293,28 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
             _create_ready_campaign(workspace)
             modifiers = [
                 {
-                    "id": "module-a",
+                    "id": "higher-module-override",
                     "operation": "override",
                     "priority": "module_override",
-                    "source": "module:a",
+                    "source": "module:higher",
+                    "target": "ability_score",
+                    "unit": "ability_score",
+                    "value": 18,
+                },
+                {
+                    "id": "enabled-a",
+                    "operation": "override",
+                    "priority": "enabled_rule",
+                    "source": "rule:a",
                     "target": "ability_score",
                     "unit": "ability_score",
                     "value": 16,
                 },
                 {
-                    "id": "module-b",
+                    "id": "enabled-b",
                     "operation": "override",
-                    "priority": "module_override",
-                    "source": "module:b",
+                    "priority": "enabled_rule",
+                    "source": "rule:b",
                     "target": "ability_score",
                     "unit": "ability_score",
                     "value": 18,
@@ -366,8 +356,8 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
                         "code": "formula_priority_conflict",
                         "message": "同优先级公式修正项互相冲突，计算未写入。",
                         "details": {
-                            "priority": "module_override",
-                            "modifier_ids": ["module-a", "module-b"],
+                            "priority": "enabled_rule",
+                            "modifier_ids": ["enabled-a", "enabled-b"],
                             "values": [16, 18],
                         },
                     },
@@ -379,18 +369,18 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
             self.assertEqual(2, opened_payload["revision"])
             self.assertNotIn("derived_values", opened_payload)
 
-    def test_modifier_cannot_push_input_outside_the_formula_range(self) -> None:
+    def test_untrusted_modifier_source_never_writes_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory) / "campaign"
             _create_ready_campaign(workspace)
             modifier = {
-                "id": "out-of-range-bonus",
+                "id": "untrusted-bonus",
                 "operation": "add",
-                "priority": "enabled_rule",
+                "priority": "approved_table_rule",
                 "source": "character-build:test-fixture",
                 "target": "ability_score",
                 "unit": "ability_score",
-                "value": 1,
+                "value": 2,
             }
 
             result = run_facade(
@@ -399,7 +389,7 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
                 "--expected-revision",
                 "2",
                 "--idempotency-key",
-                "out-of-range-after-modifier",
+                "untrusted-modifier-source",
                 "--character",
                 "aria",
                 "--formula",
@@ -408,7 +398,7 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
                 json.dumps(
                     {
                         "ability_score": {
-                            "value": 30,
+                            "value": 15,
                             "unit": "ability_score",
                         }
                     }
@@ -425,13 +415,11 @@ class FormulaRecalculationFacadeTests(unittest.TestCase):
                 {
                     "ok": False,
                     "error": {
-                        "code": "invalid_formula_input",
-                        "message": "公式输入超出目录声明范围，计算未写入。",
+                        "code": "formula_modifier_unauthorized",
+                        "message": "公式修正项缺少稳定且已生效的权威来源，计算未写入。",
                         "details": {
-                            "field": "ability_score",
-                            "minimum": 1,
-                            "maximum": 30,
-                            "value": 31,
+                            "modifier_ids": ["untrusted-bonus"],
+                            "sources": ["character-build:test-fixture"],
                         },
                     },
                 },

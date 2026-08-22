@@ -22,6 +22,7 @@
         "id": "ability-modifier",
         "version": "1",
         "title": "属性调整值",
+        "activation_condition": "三宝书规则基线适用且输入为 1 至 30 的属性值。",
         "input": {
           "id": "ability_score",
           "unit": "ability_score",

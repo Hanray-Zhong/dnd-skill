@@ -51,6 +51,7 @@ class FormulaSpec:
     formula_id: str
     version: str
     title: str
+    activation_condition: str
     input_id: str
     input_unit: str
     input_minimum: int
@@ -177,6 +178,7 @@ def _load_formula_catalog(
         "id",
         "version",
         "title",
+        "activation_condition",
         "input",
         "result_unit",
         "subtract",
@@ -220,6 +222,9 @@ def _load_formula_catalog(
                 formula_id=formula_id,
                 version=_required_string(raw_formula, "version"),
                 title=_required_string(raw_formula, "title"),
+                activation_condition=_required_string(
+                    raw_formula, "activation_condition"
+                ),
                 input_id=_required_string(raw_input, "id"),
                 input_unit=_required_string(raw_input, "unit"),
                 input_minimum=raw_input["minimum"],

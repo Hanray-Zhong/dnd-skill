@@ -68,6 +68,7 @@ class FormulaCatalogBuildBoundaryTests(unittest.TestCase):
                         "id": "ability-modifier",
                         "version": "1",
                         "title": "属性调整值",
+                        "activation_condition": "输入是 1 至 30 的已确认属性值。",
                         "input": {
                             "id": "ability_score",
                             "unit": "ability_score",
@@ -122,6 +123,10 @@ class FormulaCatalogBuildBoundaryTests(unittest.TestCase):
             )
             self.assertEqual("ability-modifier", formula["id"])
             self.assertEqual("1", formula["version"])
+            self.assertEqual(
+                "输入是 1 至 30 的已确认属性值。",
+                formula["activation_condition"],
+            )
             self.assertEqual(
                 {
                     "id": "ability_score",

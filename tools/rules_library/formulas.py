@@ -88,6 +88,7 @@ def formula_records(
                 "id": spec.formula_id,
                 "version": spec.version,
                 "title": spec.title,
+                "activation_condition": spec.activation_condition,
                 "input": {
                     "id": spec.input_id,
                     "unit": spec.input_unit,

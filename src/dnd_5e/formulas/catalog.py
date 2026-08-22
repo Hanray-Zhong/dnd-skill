@@ -14,6 +14,7 @@ _FORMULA_KEYS = {
     "id",
     "version",
     "title",
+    "activation_condition",
     "input",
     "expression",
     "modifiers",
@@ -98,6 +99,7 @@ def _validate_formula(raw: object) -> dict[str, object]:
     formula_id = _require_string(raw, "id")
     _require_string(raw, "version")
     _require_string(raw, "title")
+    _require_string(raw, "activation_condition")
     formula_input = raw.get("input")
     expression = raw.get("expression")
     modifiers = raw.get("modifiers")
@@ -287,10 +289,23 @@ class FormulaCatalog:
             unit=str(formula_input["unit"]),
             policy=modifier_policy,
         )
-        applied, suppressed = self._resolve_modifiers(
+        self._ensure_no_priority_conflicts(
             validated_modifiers,
             priority_order=modifier_policy["priority_order"],
         )
+        if validated_modifiers:
+            ordered = sorted(
+                validated_modifiers,
+                key=lambda item: str(item["id"]),
+            )
+            raise FacadeError(
+                "formula_modifier_unauthorized",
+                "公式修正项缺少稳定且已生效的权威来源，计算未写入。",
+                {
+                    "modifier_ids": [item["id"] for item in ordered],
+                    "sources": [item["source"] for item in ordered],
+                },
+            )
         current_value = input_value
         steps: list[dict[str, object]] = [
             {
@@ -300,31 +315,6 @@ class FormulaCatalog:
                 "value": current_value,
             }
         ]
-        for modifier in applied:
-            before = current_value
-            if modifier["operation"] == "override":
-                current_value = cast(int, modifier["value"])
-            else:
-                current_value += cast(int, modifier["value"])
-            steps.append(
-                {
-                    "operation": "modifier",
-                    "modifier": modifier,
-                    "before": before,
-                    "after": current_value,
-                }
-            )
-        if current_value < minimum or current_value > maximum:
-            raise FacadeError(
-                "invalid_formula_input",
-                "公式输入超出目录声明范围，计算未写入。",
-                {
-                    "field": input_id,
-                    "minimum": minimum,
-                    "maximum": maximum,
-                    "value": current_value,
-                },
-            )
         after_subtract = current_value - int(expression["subtract"])
         steps.append(
             {
@@ -361,6 +351,7 @@ class FormulaCatalog:
             "formula": {
                 "id": formula["id"],
                 "version": formula["version"],
+                "activation_condition": formula["activation_condition"],
                 "catalog_version": self.version,
                 "catalog_sha256": self.sha256,
                 "source_rule_id": source["rule_id"],
@@ -371,8 +362,8 @@ class FormulaCatalog:
             "inputs": inputs,
             "modifiers": {
                 "priority_order": modifier_policy["priority_order"],
-                "applied": applied,
-                "suppressed": suppressed,
+                "applied": [],
+                "suppressed": [],
             },
             "steps": steps,
             "result": {"unit": result_policy["unit"], "value": value},
@@ -426,45 +417,25 @@ class FormulaCatalog:
         return validated
 
     @staticmethod
-    def _resolve_modifiers(
+    def _ensure_no_priority_conflicts(
         modifiers: list[dict[str, object]],
         *,
         priority_order: object,
-    ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    ) -> None:
         assert isinstance(priority_order, list)
-        rank = {priority: index for index, priority in enumerate(priority_order)}
         overrides = [item for item in modifiers if item["operation"] == "override"]
-        additions = [item for item in modifiers if item["operation"] == "add"]
-        applied: list[dict[str, object]] = []
-        suppressed: list[dict[str, object]] = []
-        if overrides:
-            highest_rank = min(rank[str(item["priority"])] for item in overrides)
-            highest = sorted(
-                (
-                    item
-                    for item in overrides
-                    if rank[str(item["priority"])] == highest_rank
-                ),
+        for priority in priority_order:
+            same_priority = sorted(
+                (item for item in overrides if item["priority"] == priority),
                 key=lambda item: str(item["id"]),
             )
-            if len({cast(int, item["value"]) for item in highest}) > 1:
+            if len({cast(int, item["value"]) for item in same_priority}) > 1:
                 raise FacadeError(
                     "formula_priority_conflict",
                     "同优先级公式修正项互相冲突，计算未写入。",
                     {
-                        "priority": highest[0]["priority"],
-                        "modifier_ids": [item["id"] for item in highest],
-                        "values": [item["value"] for item in highest],
+                        "priority": priority,
+                        "modifier_ids": [item["id"] for item in same_priority],
+                        "values": [item["value"] for item in same_priority],
                     },
                 )
-            applied.append(highest[0])
-            suppressed.extend(highest[1:])
-            suppressed.extend(item for item in overrides if item not in highest)
-        additions.sort(
-            key=lambda item: (rank[str(item["priority"])], str(item["id"]))
-        )
-        applied.extend(additions)
-        suppressed.sort(
-            key=lambda item: (rank[str(item["priority"])], str(item["id"]))
-        )
-        return applied, suppressed
