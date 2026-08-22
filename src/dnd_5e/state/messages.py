@@ -5,61 +5,67 @@ from pathlib import Path
 import sqlite3
 
 from dnd_5e.messaging.protocol import (
-    build_initial_message_scene,
+    AmbiguousAction,
+    MessageScene,
+    MessageType,
+    PERSISTED_MESSAGE_TYPES,
+    character_controls,
+    classify_message,
+    message_audience_id,
     message_scene_entity_id,
+    parse_message_scene,
 )
-from dnd_5e.state.audiences import validate_audiences
+from dnd_5e.state.audiences import read_audiences, validate_audiences
 from dnd_5e.state.encoding import canonical_json
 from dnd_5e.state.types import (
-    AWAITING_SESSION_ZERO,
     CampaignSummary,
     IdempotencyConflict,
     InvalidStateRequest,
+    MessageRecord,
+    MessageRecordRequest,
     READY_TO_PLAY,
     RevisionConflict,
-    SessionZeroCompletion,
-    SessionZeroRequest,
 )
 
 
-def _completion_from_result(
+def _record_from_result(
     result_json: str,
     *,
     event_id: str,
-    request: SessionZeroRequest,
-) -> SessionZeroCompletion:
+    request: MessageRecordRequest,
+) -> MessageRecord:
     result = json.loads(result_json)
     if not isinstance(result, dict):
-        raise sqlite3.DatabaseError("Session Zero 幂等请求结果损坏")
+        raise sqlite3.DatabaseError("消息幂等请求结果损坏")
     campaign_id = result.get("campaign_id")
     campaign_status = result.get("campaign_status")
     created_at = result.get("created_at")
-    configuration = result.get("initial_config")
+    initial_config = result.get("initial_config")
     revision = result.get("revision")
     audiences = result.get("audiences")
     if (
         not isinstance(campaign_id, str)
         or campaign_status != READY_TO_PLAY
         or not isinstance(created_at, str)
-        or not isinstance(configuration, dict)
+        or not isinstance(initial_config, dict)
         or type(revision) is not int
         or not isinstance(audiences, dict)
     ):
-        raise sqlite3.DatabaseError("Session Zero 幂等请求结果损坏")
+        raise sqlite3.DatabaseError("消息幂等请求结果损坏")
     try:
         typed_audiences = validate_audiences(
             audiences,
             required_audience_id=request.audience_id,
         )
     except InvalidStateRequest as error:
-        raise sqlite3.DatabaseError("Session Zero 幂等请求结果损坏") from error
-    return SessionZeroCompletion(
+        raise sqlite3.DatabaseError("消息幂等请求结果损坏") from error
+    return MessageRecord(
         summary=CampaignSummary(
             campaign_id=campaign_id,
             created_at=created_at,
             revision=revision,
             campaign_status=campaign_status,
-            initial_config=configuration,
+            initial_config=initial_config,
             audiences=typed_audiences,
         ),
         event_id=event_id,
@@ -68,32 +74,80 @@ def _completion_from_result(
     )
 
 
-def commit_session_zero(
+def _load_message_scene(
+    connection: sqlite3.Connection,
+    scene_id: str,
+) -> MessageScene:
+    row = connection.execute(
+        """
+        SELECT payload_json
+        FROM entities
+        WHERE entity_id = ? AND entity_type = 'scene'
+        """,
+        (message_scene_entity_id(scene_id),),
+    ).fetchone()
+    if row is None:
+        raise InvalidStateRequest("目标场景不存在")
+    try:
+        scene = parse_message_scene(json.loads(row[0]))
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise InvalidStateRequest("目标场景交互上下文损坏") from error
+    if scene.scene_id != scene_id:
+        raise InvalidStateRequest("目标场景标识不一致")
+    return scene
+
+
+def read_message_scene(database_path: Path, *, scene_id: str) -> MessageScene:
+    database_uri = f"{database_path.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(database_uri, uri=True) as connection:
+        connection.execute("PRAGMA query_only = ON")
+        return _load_message_scene(connection, scene_id)
+
+
+def record_message(
     database_path: Path,
     *,
-    request: SessionZeroRequest,
+    request: MessageRecordRequest,
     event_id: str,
     committed_at: str,
-) -> SessionZeroCompletion:
+) -> MessageRecord:
     if (
         request.expected_revision < 1
         or not request.idempotency_key.strip()
-        or not request.source.strip()
+        or not request.input_reference.strip()
+        or not request.speaker_id.strip()
+        or not request.character_id.strip()
+        or not request.scene_id.strip()
+        or not request.raw_text.strip()
+        or not request.content.strip()
+        or request.source != "dnd-5e"
         or not request.audience_id.strip()
+        or not isinstance(request.message_type, MessageType)
+        or request.message_type not in PERSISTED_MESSAGE_TYPES
     ):
-        raise InvalidStateRequest("Session Zero 状态请求字段无效")
-    validated_audiences = validate_audiences(
-        request.audiences,
-        required_audience_id=request.audience_id,
-    )
+        raise InvalidStateRequest("消息状态请求字段无效")
+    try:
+        classification = classify_message(request.raw_text)
+    except AmbiguousAction as error:
+        raise InvalidStateRequest("消息状态请求包含歧义动作") from error
+    if (
+        classification.message_type != request.message_type
+        or classification.content != request.content
+    ):
+        raise InvalidStateRequest("消息状态请求与权威分类不一致")
     request_json = canonical_json(
         {
             "audience_id": request.audience_id,
-            "audiences": validated_audiences,
-            "configuration": request.configuration,
+            "character_id": request.character_id,
+            "content": request.content,
             "expected_revision": request.expected_revision,
-            "operation": "complete_session_zero",
+            "input_reference": request.input_reference,
+            "message_type": request.message_type.value,
+            "operation": "record_message",
+            "raw_text": request.raw_text,
+            "scene_id": request.scene_id,
             "source": request.source,
+            "speaker_id": request.speaker_id,
         }
     )
     with sqlite3.connect(database_path) as connection:
@@ -112,13 +166,13 @@ def commit_session_zero(
                 stored_request, stored_event_id, stored_result = existing
                 if stored_request != request_json:
                     raise IdempotencyConflict
-                completion = _completion_from_result(
+                result = _record_from_result(
                     str(stored_result),
                     event_id=str(stored_event_id),
                     request=request,
                 )
                 connection.rollback()
-                return completion
+                return result
 
             metadata = connection.execute(
                 """
@@ -135,50 +189,74 @@ def commit_session_zero(
                 """
             ).fetchone()
             if metadata is None:
-                raise sqlite3.DatabaseError("战役状态库缺少一致的 campaign 当前修订")
+                raise sqlite3.DatabaseError(
+                    "战役状态库缺少一致的 campaign 当前修订"
+                )
             campaign_id, created_at, current_revision, campaign_payload = metadata
-            current_payload = json.loads(campaign_payload)
+            payload = json.loads(campaign_payload)
+            initial_config = (
+                payload.get("initial_config") if isinstance(payload, dict) else None
+            )
+            campaign_status = (
+                payload.get("campaign_status") if isinstance(payload, dict) else None
+            )
             if (
-                not isinstance(current_payload, dict)
-                or current_payload.get("campaign_status") != AWAITING_SESSION_ZERO
-                or not isinstance(current_payload.get("initial_config"), dict)
+                not isinstance(initial_config, dict)
+                or campaign_status != READY_TO_PLAY
             ):
-                raise sqlite3.DatabaseError("战役不处于可完成 Session Zero 的状态")
+                raise sqlite3.DatabaseError("campaign 实体尚未进入可开团状态")
+            controls = character_controls(initial_config)
+            if (
+                request.speaker_id not in controls
+                or request.character_id not in controls[request.speaker_id]
+            ):
+                raise InvalidStateRequest("消息发言者或角色控制权无效")
+            scene = _load_message_scene(connection, request.scene_id)
+            if (
+                request.speaker_id not in scene.participant_player_ids
+                or request.character_id
+                not in scene.character_controls.get(request.speaker_id, frozenset())
+                or request.audience_id
+                != message_audience_id(
+                    request.message_type,
+                    request.speaker_id,
+                    scene,
+                )
+            ):
+                raise InvalidStateRequest("消息场景成员、交互模式或受众无效")
+            typed_audiences = read_audiences(connection)
+            if request.audience_id not in typed_audiences:
+                raise InvalidStateRequest("消息事件受众不存在")
             current = CampaignSummary(
                 campaign_id=str(campaign_id),
                 created_at=str(created_at),
                 revision=int(current_revision),
-                campaign_status=AWAITING_SESSION_ZERO,
-                initial_config=current_payload["initial_config"],
+                campaign_status=campaign_status,
+                initial_config=initial_config,
+                audiences=typed_audiences,
             )
             if current.revision != request.expected_revision:
                 raise RevisionConflict(current)
 
             new_revision = current.revision + 1
-            initial_scene = build_initial_message_scene(request.configuration)
-            updated_payload = canonical_json(
-                {
-                    "campaign_status": READY_TO_PLAY,
-                    "initial_config": request.configuration,
-                }
-            )
             event_payload = canonical_json(
                 {
-                    "audiences": validated_audiences,
-                    "campaign_id": current.campaign_id,
-                    "campaign_status": READY_TO_PLAY,
-                    "configuration": request.configuration,
-                    "expected_revision": request.expected_revision,
-                    "initial_scene": initial_scene,
+                    "character_id": request.character_id,
+                    "content": request.content,
+                    "input_reference": request.input_reference,
+                    "message_type": request.message_type.value,
+                    "raw_text": request.raw_text,
+                    "scene_id": request.scene_id,
+                    "speaker_id": request.speaker_id,
                 }
             )
             summary = CampaignSummary(
                 campaign_id=current.campaign_id,
                 created_at=current.created_at,
                 revision=new_revision,
-                campaign_status=READY_TO_PLAY,
-                initial_config=request.configuration,
-                audiences=validated_audiences,
+                campaign_status=current.campaign_status,
+                initial_config=current.initial_config,
+                audiences=current.audiences,
             )
             result_json = canonical_json(
                 {
@@ -198,17 +276,12 @@ def commit_session_zero(
             updated_rows = connection.execute(
                 """
                 UPDATE entities
-                SET revision = ?, payload_json = ?
+                SET revision = ?
                 WHERE entity_id = ?
                   AND entity_type = 'campaign'
                   AND revision = ?
                 """,
-                (
-                    new_revision,
-                    updated_payload,
-                    current.campaign_id,
-                    current.revision,
-                ),
+                (new_revision, current.campaign_id, current.revision),
             ).rowcount
             if updated_rows != 1:
                 raise sqlite3.DatabaseError("campaign 当前实体更新失败")
@@ -216,42 +289,13 @@ def commit_session_zero(
                 "UPDATE campaign_metadata SET current_revision = ? WHERE singleton = 1",
                 (new_revision,),
             )
-            for audience_id, definition in validated_audiences.items():
-                audience_type = definition.get("audience_type")
-                members = definition.get("members")
-                connection.execute(
-                    """
-                    INSERT INTO audiences VALUES (?, ?, ?)
-                    ON CONFLICT(audience_id) DO UPDATE SET
-                        audience_type = excluded.audience_type,
-                        definition_json = excluded.definition_json
-                    """,
-                    (
-                        audience_id,
-                        audience_type,
-                        canonical_json({"members": members}),
-                    ),
-                )
-            initial_scene_id = initial_scene.get("scene_id")
-            if not isinstance(initial_scene_id, str):
-                raise InvalidStateRequest("初始消息场景标识无效")
-            connection.execute(
-                "INSERT INTO entities VALUES (?, ?, ?, ?, ?)",
-                (
-                    message_scene_entity_id(initial_scene_id),
-                    "scene",
-                    1,
-                    new_revision,
-                    canonical_json(initial_scene),
-                ),
-            )
             connection.execute(
                 "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     event_id,
                     new_revision,
                     1,
-                    "session_zero_completed",
+                    "message_recorded",
                     request.source,
                     request.audience_id,
                     event_payload,
@@ -273,7 +317,7 @@ def commit_session_zero(
             connection.rollback()
             raise
 
-    return SessionZeroCompletion(
+    return MessageRecord(
         summary=summary,
         event_id=event_id,
         request=request,
