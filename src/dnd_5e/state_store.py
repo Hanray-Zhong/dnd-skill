@@ -1,12 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
 from pathlib import Path
 import sqlite3
 
+from dnd_5e.state.types import (
+    CampaignConfigRequest,
+    CampaignConfigUpdate,
+    CampaignSummary,
+    FailureInjector,
+    IdempotencyConflict,
+    RevisionConflict,
+)
 
-STATE_SCHEMA_NUMBER = 1
+
+STATE_SCHEMA_NUMBER = 2
 STATE_SCHEMA_VERSION = str(STATE_SCHEMA_NUMBER)
 STATE_APPLICATION_ID = int.from_bytes(b"DND5", byteorder="big")
 INITIAL_CAMPAIGN_STATUS = "awaiting_session_zero"
@@ -54,6 +62,16 @@ _STATE_SCHEMA_SQL = {
             UNIQUE (revision, event_sequence)
         ) STRICT
     """,
+    ("table", "state_requests"): """
+        CREATE TABLE state_requests (
+            idempotency_key TEXT PRIMARY KEY,
+            request_json TEXT NOT NULL,
+            base_revision INTEGER NOT NULL REFERENCES revisions(revision),
+            committed_revision INTEGER NOT NULL REFERENCES revisions(revision),
+            event_id TEXT NOT NULL UNIQUE REFERENCES events(event_id),
+            result_json TEXT NOT NULL
+        ) STRICT
+    """,
     ("table", "knowledge"): """
         CREATE TABLE knowledge (
             subject_id TEXT NOT NULL,
@@ -78,15 +96,6 @@ STATE_SCHEMA_DEFINITIONS = {
     for key, statement in _STATE_SCHEMA_SQL.items()
 }
 STATE_SCHEMA_OBJECTS = frozenset(STATE_SCHEMA_DEFINITIONS)
-
-
-@dataclass(frozen=True)
-class CampaignSummary:
-    campaign_id: str
-    created_at: str
-    revision: int
-    campaign_status: str
-    initial_config: dict[str, object]
 
 
 def _canonical_json(value: object) -> str:
@@ -170,6 +179,217 @@ def initialize_state_store(
         revision=1,
         campaign_status=INITIAL_CAMPAIGN_STATUS,
         initial_config=json.loads(canonical_config),
+    )
+
+
+def update_campaign_difficulty(
+    database_path: Path,
+    *,
+    request: CampaignConfigRequest,
+    event_id: str,
+    committed_at: str,
+    failure_injector: FailureInjector | None = None,
+) -> CampaignConfigUpdate:
+    request_json = _canonical_json(
+        {
+            "audience_id": request.audience_id,
+            "expected_changes": {"difficulty": request.difficulty},
+            "expected_revision": request.expected_revision,
+            "operation": "configure_difficulty",
+            "source": request.source,
+        }
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            existing_request = connection.execute(
+                """
+                SELECT request_json, event_id, result_json
+                FROM state_requests
+                WHERE idempotency_key = ?
+                """,
+                (request.idempotency_key,),
+            ).fetchone()
+            if existing_request is not None:
+                stored_request, stored_event_id, stored_result = existing_request
+                if stored_request != request_json:
+                    raise IdempotencyConflict
+                result_payload = json.loads(stored_result)
+                if not isinstance(result_payload, dict):
+                    raise sqlite3.DatabaseError("幂等请求结果损坏")
+                stored_campaign_id = result_payload.get("campaign_id")
+                stored_created_at = result_payload.get("created_at")
+                stored_config = result_payload.get("initial_config")
+                stored_revision = result_payload.get("revision")
+                stored_status = result_payload.get("campaign_status")
+                if (
+                    not isinstance(stored_campaign_id, str)
+                    or not isinstance(stored_created_at, str)
+                    or not isinstance(stored_config, dict)
+                    or type(stored_revision) is not int
+                    or stored_status != INITIAL_CAMPAIGN_STATUS
+                ):
+                    raise sqlite3.DatabaseError("幂等请求结果损坏")
+                replayed_result = CampaignConfigUpdate(
+                    summary=CampaignSummary(
+                        campaign_id=stored_campaign_id,
+                        created_at=stored_created_at,
+                        revision=stored_revision,
+                        campaign_status=stored_status,
+                        initial_config=stored_config,
+                    ),
+                    event_id=str(stored_event_id),
+                    request=request,
+                    replayed=True,
+                )
+                connection.rollback()
+                return replayed_result
+
+            metadata = connection.execute(
+                """
+                SELECT metadata.campaign_id,
+                       metadata.created_at,
+                       metadata.current_revision,
+                       campaign.payload_json
+                FROM campaign_metadata AS metadata
+                JOIN entities AS campaign
+                  ON campaign.entity_id = metadata.campaign_id
+                 AND campaign.entity_type = 'campaign'
+                 AND campaign.revision = metadata.current_revision
+                WHERE metadata.singleton = 1
+                """
+            ).fetchone()
+            if metadata is None:
+                raise sqlite3.DatabaseError(
+                    "战役状态库缺少一致的 campaign 当前修订"
+                )
+            campaign_id, created_at, current_revision, campaign_payload = metadata
+            payload = json.loads(campaign_payload)
+            initial_config = (
+                payload.get("initial_config") if isinstance(payload, dict) else None
+            )
+            campaign_status = (
+                payload.get("campaign_status") if isinstance(payload, dict) else None
+            )
+            if (
+                not isinstance(initial_config, dict)
+                or campaign_status != INITIAL_CAMPAIGN_STATUS
+            ):
+                raise sqlite3.DatabaseError(
+                    "campaign 实体缺少初始配置或战役状态"
+                )
+            current = CampaignSummary(
+                campaign_id=str(campaign_id),
+                created_at=str(created_at),
+                revision=int(current_revision),
+                campaign_status=campaign_status,
+                initial_config=initial_config,
+            )
+            if current.revision != request.expected_revision:
+                raise RevisionConflict(current)
+
+            updated_config = {**initial_config, "difficulty": request.difficulty}
+            new_revision = current.revision + 1
+            updated_payload = _canonical_json(
+                {
+                    "campaign_status": campaign_status,
+                    "initial_config": updated_config,
+                }
+            )
+            event_payload = _canonical_json(
+                {
+                    "campaign_id": current.campaign_id,
+                    "changes": {
+                        "difficulty": {
+                            "after": request.difficulty,
+                            "before": initial_config.get("difficulty"),
+                        }
+                    },
+                    "expected_revision": request.expected_revision,
+                }
+            )
+            result = CampaignSummary(
+                campaign_id=current.campaign_id,
+                created_at=current.created_at,
+                revision=new_revision,
+                campaign_status=campaign_status,
+                initial_config=updated_config,
+            )
+            result_json = _canonical_json(
+                {
+                    "campaign_id": result.campaign_id,
+                    "campaign_status": result.campaign_status,
+                    "created_at": result.created_at,
+                    "initial_config": result.initial_config,
+                    "revision": result.revision,
+                }
+            )
+
+            connection.execute(
+                "INSERT INTO revisions VALUES (?, ?, ?)",
+                (new_revision, committed_at, "dnd-5e-campaign-state"),
+            )
+            updated_rows = connection.execute(
+                """
+                UPDATE entities
+                SET revision = ?, payload_json = ?
+                WHERE entity_id = ?
+                  AND entity_type = 'campaign'
+                  AND revision = ?
+                """,
+                (
+                    new_revision,
+                    updated_payload,
+                    current.campaign_id,
+                    current.revision,
+                ),
+            ).rowcount
+            if updated_rows != 1:
+                raise sqlite3.DatabaseError("campaign 当前实体更新失败")
+            connection.execute(
+                "UPDATE campaign_metadata SET current_revision = ? WHERE singleton = 1",
+                (new_revision,),
+            )
+            connection.execute(
+                "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    event_id,
+                    new_revision,
+                    1,
+                    "campaign_config_updated",
+                    request.source,
+                    request.audience_id,
+                    event_payload,
+                ),
+            )
+            if failure_injector is not None:
+                failure_injector("after_event")
+            connection.execute(
+                "INSERT INTO state_requests VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    request.idempotency_key,
+                    request_json,
+                    current.revision,
+                    new_revision,
+                    event_id,
+                    result_json,
+                ),
+            )
+            if failure_injector is not None:
+                failure_injector("before_commit")
+            connection.commit()
+            if failure_injector is not None:
+                failure_injector("after_commit")
+        except BaseException:
+            connection.rollback()
+            raise
+
+    return CampaignConfigUpdate(
+        summary=result,
+        event_id=event_id,
+        request=request,
+        replayed=False,
     )
 
 

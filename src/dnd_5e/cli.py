@@ -9,8 +9,12 @@ from typing import Any
 
 from dnd_5e.catalog import public_skill_catalog
 from dnd_5e.errors import FacadeError
-from dnd_5e.workspace import create_campaign, open_campaign
-from dnd_5e.state_store import CampaignSummary
+from dnd_5e.state.types import CampaignConfigUpdate, CampaignSummary
+from dnd_5e.workspace import (
+    configure_campaign_difficulty,
+    create_campaign,
+    open_campaign,
+)
 
 
 def _reject_nonstandard_json_constant(value: str) -> None:
@@ -31,11 +35,17 @@ def _initial_config(value: str) -> dict[str, object]:
 
 
 def _report_error(error: FacadeError) -> int:
+    error_payload: dict[str, object] = {
+        "code": error.code,
+        "message": error.message,
+    }
+    if error.details is not None:
+        error_payload["details"] = error.details
     print(
         json.dumps(
             {
                 "ok": False,
-                "error": {"code": error.code, "message": error.message},
+                "error": error_payload,
             },
             ensure_ascii=False,
             sort_keys=True,
@@ -67,6 +77,22 @@ def _campaign_success_payload(
     }
 
 
+def _config_update_success_payload(
+    workspace: Path,
+    update: CampaignConfigUpdate,
+) -> dict[str, object]:
+    payload = _campaign_success_payload("configure", workspace, update.summary)
+    payload["transaction"] = {
+        "audience_id": update.request.audience_id,
+        "event_id": update.event_id,
+        "expected_changes": {"difficulty": update.request.difficulty},
+        "idempotency_key": update.request.idempotency_key,
+        "replayed": update.replayed,
+        "source": update.request.source,
+    }
+    return payload
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dnd-5e")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -81,6 +107,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     open_parser = subcommands.add_parser("open", help="打开已有战役")
     open_parser.add_argument("workspace", type=Path, help="既有战役工作区")
+    configure_parser = subcommands.add_parser(
+        "configure",
+        help="修改一项 Session Zero 战役配置",
+    )
+    configure_parser.add_argument("workspace", type=Path, help="既有战役工作区")
+    configure_parser.add_argument(
+        "--expected-revision",
+        type=int,
+        required=True,
+        help="状态变更请求依据的当前修订号",
+    )
+    configure_parser.add_argument(
+        "--idempotency-key",
+        required=True,
+        help="用于安全重试的稳定幂等键",
+    )
+    configure_parser.add_argument(
+        "--difficulty",
+        required=True,
+        help="新的难度策略",
+    )
     return parser
 
 
@@ -117,6 +164,24 @@ def main(arguments: Sequence[str] | None = None) -> int:
         print(
             json.dumps(
                 _campaign_success_payload("open", options.workspace, summary),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return 0
+    if options.command == "configure":
+        try:
+            update = configure_campaign_difficulty(
+                options.workspace,
+                expected_revision=options.expected_revision,
+                idempotency_key=options.idempotency_key,
+                difficulty=options.difficulty,
+            )
+        except FacadeError as error:
+            return _report_error(error)
+        print(
+            json.dumps(
+                _config_update_success_payload(options.workspace, update),
                 ensure_ascii=False,
                 sort_keys=True,
             )

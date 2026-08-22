@@ -12,14 +12,22 @@ import uuid
 from dnd_5e import __version__
 from dnd_5e.catalog import skill_suite_sha256
 from dnd_5e.errors import FacadeError
-from dnd_5e.state_store import (
+from dnd_5e.state.types import (
+    CampaignConfigRequest,
+    CampaignConfigUpdate,
     CampaignSummary,
+    FailureInjector,
+    IdempotencyConflict,
+    RevisionConflict,
+)
+from dnd_5e.state_store import (
     STATE_APPLICATION_ID,
     STATE_SCHEMA_OBJECTS,
     STATE_SCHEMA_STATEMENTS,
     STATE_SCHEMA_VERSION,
     initialize_state_store,
     read_state_store,
+    update_campaign_difficulty,
 )
 
 
@@ -299,6 +307,30 @@ def _rebuild_projection_directories(workspace: Path) -> None:
             ) from error
 
 
+def _load_existing_campaign(workspace: Path) -> tuple[Path, Path, CampaignSummary]:
+    requested_workspace = workspace.expanduser()
+    if requested_workspace.is_symlink():
+        raise FacadeError("unsafe_workspace", "战役工作区路径不安全。")
+    try:
+        resolved_workspace = requested_workspace.resolve(strict=True)
+    except OSError as error:
+        raise _invalid_manifest() from error
+    if not resolved_workspace.is_dir():
+        raise _invalid_manifest()
+    manifest, database_path = _load_manifest(resolved_workspace)
+    _validate_persistent_directories(resolved_workspace)
+    try:
+        summary = read_state_store(database_path)
+    except (OSError, sqlite3.Error, TypeError, ValueError) as error:
+        raise _invalid_state_store() from error
+    if (
+        summary.campaign_id != manifest.get("campaign_id")
+        or summary.created_at != manifest.get("created_at")
+    ):
+        raise _invalid_state_store()
+    return resolved_workspace, database_path, summary
+
+
 def create_campaign(
     workspace: Path,
     initial_config: dict[str, object],
@@ -386,26 +418,60 @@ def create_campaign(
         ) from error
 
 
-def open_campaign(workspace: Path) -> CampaignSummary:
-    requested_workspace = workspace.expanduser()
-    if requested_workspace.is_symlink():
-        raise FacadeError("unsafe_workspace", "战役工作区路径不安全。")
+def configure_campaign_difficulty(
+    workspace: Path,
+    *,
+    expected_revision: int,
+    idempotency_key: str,
+    difficulty: str,
+    failure_injector: FailureInjector | None = None,
+) -> CampaignConfigUpdate:
+    if expected_revision < 1 or not idempotency_key.strip() or not difficulty.strip():
+        raise FacadeError(
+            "invalid_state_request",
+            "状态变更请求必须包含有效修订号、幂等键和难度策略。",
+        )
+    _, database_path, _ = _load_existing_campaign(workspace)
+    request = CampaignConfigRequest(
+        expected_revision=expected_revision,
+        idempotency_key=idempotency_key,
+        difficulty=difficulty,
+        source="dnd-5e-campaign-start",
+        audience_id="dm",
+    )
     try:
-        resolved_workspace = requested_workspace.resolve(strict=True)
-    except OSError as error:
-        raise _invalid_manifest() from error
-    if not resolved_workspace.is_dir():
-        raise _invalid_manifest()
-    manifest, database_path = _load_manifest(resolved_workspace)
-    _validate_persistent_directories(resolved_workspace)
-    try:
-        summary = read_state_store(database_path)
-    except (OSError, sqlite3.Error, TypeError, ValueError) as error:
+        return update_campaign_difficulty(
+            database_path,
+            request=request,
+            event_id=str(uuid.uuid4()),
+            committed_at=_created_at(),
+            failure_injector=failure_injector,
+        )
+    except RevisionConflict as error:
+        raise FacadeError(
+            "revision_conflict",
+            "状态变更请求基于过期修订，必须先重新打开战役并重新对账。",
+            {
+                "expected_revision": expected_revision,
+                "current_revision": error.current.revision,
+                "current_config": error.current.initial_config,
+            },
+        ) from error
+    except IdempotencyConflict as error:
+        raise FacadeError(
+            "idempotency_conflict",
+            "该幂等键已用于不同的状态变更请求。",
+        ) from error
+    except (OSError, sqlite3.Error) as error:
+        raise FacadeError(
+            "state_commit_failed",
+            "状态事务写入失败，未提交任何部分状态。",
+        ) from error
+    except (TypeError, ValueError) as error:
         raise _invalid_state_store() from error
-    if (
-        summary.campaign_id != manifest.get("campaign_id")
-        or summary.created_at != manifest.get("created_at")
-    ):
-        raise _invalid_state_store()
+
+
+def open_campaign(workspace: Path) -> CampaignSummary:
+    resolved_workspace, _, summary = _load_existing_campaign(workspace)
     _rebuild_projection_directories(resolved_workspace)
     return summary
