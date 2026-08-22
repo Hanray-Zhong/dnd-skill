@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1138" height="556" viewBox="0 0 1138 556" role="img" aria-labelledby="title desc">
+<title id="title">灰烬墓室交叉口的只读静态战术地图</title>
+<desc id="desc">五尺方格，显示玩家棋子、可见敌人、墙门、困难地形、疾走可达范围以及到 L7 的示例最低移动消耗路径。</desc>
+<style>
+    .bg{fill:#151918}.cell{fill:#252b26;stroke:#4b534b;stroke-width:1}.coord{fill:#b9b09b;font:700 12px system-ui;text-anchor:middle}
+    .terrain{fill:#62654a;stroke:#9a9b6e;stroke-dasharray:4 3}.normal{fill:#59d9d244;stroke:#59d9d2}.dash{fill:#efb35b44;stroke:#efb35b;stroke-dasharray:5 3}
+    .wall{stroke:#eee6d7;stroke-width:7}.door{stroke:#efb35b;stroke-width:4;stroke-dasharray:9 11}.token{stroke-width:3}.player{fill:#1c736f;stroke:#b6fff9}.ally{fill:#44634a;stroke:#bce8c1}.enemy{fill:#823e38;stroke:#ffc1ba}
+    .tokenText{fill:#fff;font:800 11px system-ui;text-anchor:middle;paint-order:stroke;stroke:#111;stroke-width:3}.route{fill:none;stroke:#fff;stroke-width:6;stroke-linecap:round;stroke-linejoin:round}.risk{stroke:#f26d62;stroke-width:10;stroke-dasharray:7 6}
+    .panel{fill:#202624}.heading{fill:#f3eee3;font:600 25px Georgia,serif}.label{fill:#efb35b;font:800 11px system-ui;letter-spacing:1px}.body{fill:#ded8c9;font:14px system-ui}.muted{fill:#aaa28f;font:12px system-ui}.code{fill:#c7d7cd;font:12px ui-monospace,monospace}.rule{stroke:#485149}.legend{fill:#ded8c9;font:12px system-ui}
+  </style>
+<rect class="bg" width="1138" height="556"/>
+<rect class="cell" x="38" y="38" width="48" height="48"/>
+<rect class="cell" x="86" y="38" width="48" height="48"/>
+<rect class="cell" x="134" y="38" width="48" height="48"/>
+<rect class="cell" x="182" y="38" width="48" height="48"/>
+<rect class="cell" x="230" y="38" width="48" height="48"/>
+<rect class="cell" x="278" y="38" width="48" height="48"/>
+<rect class="cell" x="326" y="38" width="48" height="48"/>
+<rect class="cell" x="374" y="38" width="48" height="48"/>
+<rect class="cell" x="422" y="38" width="48" height="48"/>
+<rect class="cell" x="470" y="38" width="48" height="48"/>
+<rect class="cell" x="518" y="38" width="48" height="48"/>
+<rect class="cell" x="566" y="38" width="48" height="48"/>
+<rect class="cell" x="614" y="38" width="48" height="48"/>
+<rect class="cell" x="662" y="38" width="48" height="48"/>
+<rect class="cell" x="38" y="86" width="48" height="48"/>
+<rect class="cell" x="86" y="86" width="48" height="48"/>
+<rect class="cell" x="134" y="86" width="48" height="48"/>
+<rect class="cell" x="182" y="86" width="48" height="48"/>
+<rect class="cell" x="230" y="86" width="48" height="48"/>
+<rect class="cell" x="278" y="86" width="48" height="48"/>
+<rect class="cell" x="326" y="86" width="48" height="48"/>
+<rect class="cell" x="374" y="86" width="48" height="48"/>
+<rect class="cell" x="422" y="86" width="48" height="48"/>
+<rect class="cell" x="470" y="86" width="48" height="48"/>
+<rect class="cell" x="518" y="86" width="48" height="48"/>
+<rect class="cell" x="566" y="86" width="48" height="48"/>
+<rect class="cell" x="614" y="86" width="48" height="48"/>
+<rect class="cell" x="662" y="86" width="48" height="48"/>
+<rect class="cell" x="38" y="134" width="48" height="48"/>
+<rect class="cell" x="86" y="134" width="48" height="48"/>
+<rect class="cell" x="134" y="134" width="48" height="48"/>
+<rect class="cell" x="182" y="134" width="48" height="48"/>
+<rect class="cell" x="230" y="134" width="48" height="48"/>
+<rect class="cell" x="278" y="134" width="48" height="48"/>
+<rect class="cell" x="326" y="134" width="48" height="48"/>
+<rect class="cell" x="374" y="134" width="48" height="48"/>
+<rect class="cell" x="422" y="134" width="48" height="48"/>
+<rect class="cell" x="470" y="134" width="48" height="48"/>
+<rect class="cell" x="518" y="134" width="48" height="48"/>
+<rect class="cell" x="566" y="134" width="48" height="48"/>
+<rect class="cell" x="614" y="134" width="48" height="48"/>
+<rect class="cell" x="662" y="134" width="48" height="48"/>
+<rect class="cell" x="38" y="182" width="48" height="48"/>
+<rect class="cell" x="86" y="182" width="48" height="48"/>
+<rect class="cell" x="134" y="182" width="48" height="48"/>
+<rect class="cell" x="182" y="182" width="48" height="48"/>
+<rect class="cell" x="230" y="182" width="48" height="48"/>
+<rect class="cell" x="278" y="182" width="48" height="48"/>
+<rect class="cell" x="326" y="182" width="48" height="48"/>
+<rect class="cell" x="374" y="182" width="48" height="48"/>
+<rect class="cell" x="422" y="182" width="48" height="48"/>
+<rect class="cell" x="470" y="182" width="48" height="48"/>
+<rect class="cell" x="518" y="182" width="48" height="48"/>
+<rect class="cell" x="566" y="182" width="48" height="48"/>
+<rect class="cell" x="614" y="182" width="48" height="48"/>
+<rect class="cell" x="662" y="182" width="48" height="48"/>
+<rect class="cell" x="38" y="230" width="48" height="48"/>
+<rect class="cell" x="86" y="230" width="48" height="48"/>
+<rect class="cell" x="134" y="230" width="48" height="48"/>
+<rect class="cell" x="182" y="230" width="48" height="48"/>
+<rect class="cell" x="230" y="230" width="48" height="48"/>
+<rect class="cell" x="278" y="230" width="48" height="48"/>
+<rect class="cell" x="326" y="230" width="48" height="48"/>
+<rect class="cell" x="374" y="230" width="48" height="48"/>
+<rect class="cell" x="422" y="230" width="48" height="48"/>
+<rect class="cell" x="470" y="230" width="48" height="48"/>
+<rect class="cell" x="518" y="230" width="48" height="48"/>
+<rect class="cell" x="566" y="230" width="48" height="48"/>
+<rect class="cell" x="614" y="230" width="48" height="48"/>
+<rect class="cell" x="662" y="230" width="48" height="48"/>
+<rect class="cell" x="38" y="278" width="48" height="48"/>
+<rect class="cell" x="86" y="278" width="48" height="48"/>
+<rect class="cell" x="134" y="278" width="48" height="48"/>
+<rect class="cell" x="182" y="278" width="48" height="48"/>
+<rect class="cell" x="230" y="278" width="48" height="48"/>
+<rect class="cell" x="278" y="278" width="48" height="48"/>
+<rect class="cell" x="326" y="278" width="48" height="48"/>
+<rect class="cell" x="374" y="278" width="48" height="48"/>
+<rect class="cell" x="422" y="278" width="48" height="48"/>
+<rect class="cell" x="470" y="278" width="48" height="48"/>
+<rect class="cell" x="518" y="278" width="48" height="48"/>
+<rect class="cell" x="566" y="278" width="48" height="48"/>
+<rect class="cell" x="614" y="278" width="48" height="48"/>
+<rect class="cell" x="662" y="278" width="48" height="48"/>
+<rect class="cell" x="38" y="326" width="48" height="48"/>
+<rect class="cell" x="86" y="326" width="48" height="48"/>
+<rect class="cell" x="134" y="326" width="48" height="48"/>
+<rect class="cell" x="182" y="326" width="48" height="48"/>
+<rect class="cell" x="230" y="326" width="48" height="48"/>
+<rect class="cell" x="278" y="326" width="48" height="48"/>
+<rect class="cell" x="326" y="326" width="48" height="48"/>
+<rect class="cell" x="374" y="326" width="48" height="48"/>
+<rect class="cell" x="422" y="326" width="48" height="48"/>
+<rect class="cell" x="470" y="326" width="48" height="48"/>
+<rect class="cell" x="518" y="326" width="48" height="48"/>
+<rect class="cell" x="566" y="326" width="48" height="48"/>
+<rect class="cell" x="614" y="326" width="48" height="48"/>
+<rect class="cell" x="662" y="326" width="48" height="48"/>
+<rect class="cell" x="38" y="374" width="48" height="48"/>
+<rect class="cell" x="86" y="374" width="48" height="48"/>
+<rect class="cell" x="134" y="374" width="48" height="48"/>
+<rect class="cell" x="182" y="374" width="48" height="48"/>
+<rect class="cell" x="230" y="374" width="48" height="48"/>
+<rect class="cell" x="278" y="374" width="48" height="48"/>
+<rect class="cell" x="326" y="374" width="48" height="48"/>
+<rect class="cell" x="374" y="374" width="48" height="48"/>
+<rect class="cell" x="422" y="374" width="48" height="48"/>
+<rect class="cell" x="470" y="374" width="48" height="48"/>
+<rect class="cell" x="518" y="374" width="48" height="48"/>
+<rect class="cell" x="566" y="374" width="48" height="48"/>
+<rect class="cell" x="614" y="374" width="48" height="48"/>
+<rect class="cell" x="662" y="374" width="48" height="48"/>
+<rect class="cell" x="38" y="422" width="48" height="48"/>
+<rect class="cell" x="86" y="422" width="48" height="48"/>
+<rect class="cell" x="134" y="422" width="48" height="48"/>
+<rect class="cell" x="182" y="422" width="48" height="48"/>
+<rect class="cell" x="230" y="422" width="48" height="48"/>
+<rect class="cell" x="278" y="422" width="48" height="48"/>
+<rect class="cell" x="326" y="422" width="48" height="48"/>
+<rect class="cell" x="374" y="422" width="48" height="48"/>
+<rect class="cell" x="422" y="422" width="48" height="48"/>
+<rect class="cell" x="470" y="422" width="48" height="48"/>
+<rect class="cell" x="518" y="422" width="48" height="48"/>
+<rect class="cell" x="566" y="422" width="48" height="48"/>
+<rect class="cell" x="614" y="422" width="48" height="48"/>
+<rect class="cell" x="662" y="422" width="48" height="48"/>
+<rect class="cell" x="38" y="470" width="48" height="48"/>
+<rect class="cell" x="86" y="470" width="48" height="48"/>
+<rect class="cell" x="134" y="470" width="48" height="48"/>
+<rect class="cell" x="182" y="470" width="48" height="48"/>
+<rect class="cell" x="230" y="470" width="48" height="48"/>
+<rect class="cell" x="278" y="470" width="48" height="48"/>
+<rect class="cell" x="326" y="470" width="48" height="48"/>
+<rect class="cell" x="374" y="470" width="48" height="48"/>
+<rect class="cell" x="422" y="470" width="48" height="48"/>
+<rect class="cell" x="470" y="470" width="48" height="48"/>
+<rect class="cell" x="518" y="470" width="48" height="48"/>
+<rect class="cell" x="566" y="470" width="48" height="48"/>
+<rect class="cell" x="614" y="470" width="48" height="48"/>
+<rect class="cell" x="662" y="470" width="48" height="48"/>
+<text class="coord" x="62" y="28">A</text>
+<text class="coord" x="110" y="28">B</text>
+<text class="coord" x="158" y="28">C</text>
+<text class="coord" x="206" y="28">D</text>
+<text class="coord" x="254" y="28">E</text>
+<text class="coord" x="302" y="28">F</text>
+<text class="coord" x="350" y="28">G</text>
+<text class="coord" x="398" y="28">H</text>
+<text class="coord" x="446" y="28">I</text>
+<text class="coord" x="494" y="28">J</text>
+<text class="coord" x="542" y="28">K</text>
+<text class="coord" x="590" y="28">L</text>
+<text class="coord" x="638" y="28">M</text>
+<text class="coord" x="686" y="28">N</text>
+<text class="coord" x="21" y="67.75999999999999">1</text>
+<text class="coord" x="21" y="115.76">2</text>
+<text class="coord" x="21" y="163.76">3</text>
+<text class="coord" x="21" y="211.76">4</text>
+<text class="coord" x="21" y="259.76">5</text>
+<text class="coord" x="21" y="307.76">6</text>
+<text class="coord" x="21" y="355.76">7</text>
+<text class="coord" x="21" y="403.76">8</text>
+<text class="coord" x="21" y="451.76">9</text>
+<text class="coord" x="21" y="499.76">10</text>
+<rect class="terrain" x="184" y="232" width="44" height="44"/>
+<rect class="terrain" x="232" y="232" width="44" height="44"/>
+<rect class="terrain" x="280" y="232" width="44" height="44"/>
+<rect class="terrain" x="232" y="280" width="44" height="44"/>
+<rect class="terrain" x="280" y="280" width="44" height="44"/>
+<rect class="terrain" x="232" y="328" width="44" height="44"/>
+<rect class="terrain" x="280" y="328" width="44" height="44"/>
+<rect class="terrain" x="472" y="376" width="44" height="44"/>
+<rect class="terrain" x="520" y="376" width="44" height="44"/>
+<rect class="terrain" x="568" y="376" width="44" height="44"/>
+<rect class="normal" x="137" y="329" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="281" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="329" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="377" width="42" height="42" rx="6"/>
+<rect class="normal" x="137" y="281" width="42" height="42" rx="6"/>
+<rect class="normal" x="137" y="377" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="233" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="281" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="329" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="377" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="425" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="233" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="425" width="42" height="42" rx="6"/>
+<rect class="normal" x="137" y="233" width="42" height="42" rx="6"/>
+<rect class="normal" x="137" y="425" width="42" height="42" rx="6"/>
+<rect class="normal" x="185" y="281" width="42" height="42" rx="6"/>
+<rect class="normal" x="185" y="377" width="42" height="42" rx="6"/>
+<rect class="normal" x="185" y="425" width="42" height="42" rx="6"/>
+<rect class="normal" x="185" y="233" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="185" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="473" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="185" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="473" width="42" height="42" rx="6"/>
+<rect class="normal" x="137" y="185" width="42" height="42" rx="6"/>
+<rect class="normal" x="137" y="473" width="42" height="42" rx="6"/>
+<rect class="normal" x="185" y="185" width="42" height="42" rx="6"/>
+<rect class="normal" x="185" y="473" width="42" height="42" rx="6"/>
+<rect class="normal" x="233" y="377" width="42" height="42" rx="6"/>
+<rect class="normal" x="233" y="425" width="42" height="42" rx="6"/>
+<rect class="normal" x="233" y="473" width="42" height="42" rx="6"/>
+<rect class="normal" x="233" y="185" width="42" height="42" rx="6"/>
+<rect class="normal" x="233" y="233" width="42" height="42" rx="6"/>
+<rect class="normal" x="233" y="281" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="137" width="42" height="42" rx="6"/>
+<rect class="normal" x="281" y="377" width="42" height="42" rx="6"/>
+<rect class="normal" x="281" y="425" width="42" height="42" rx="6"/>
+<rect class="normal" x="281" y="473" width="42" height="42" rx="6"/>
+<rect class="normal" x="233" y="329" width="42" height="42" rx="6"/>
+<rect class="normal" x="281" y="185" width="42" height="42" rx="6"/>
+<rect class="normal" x="281" y="329" width="42" height="42" rx="6"/>
+<rect class="normal" x="41" y="89" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="89" width="42" height="42" rx="6"/>
+<rect class="normal" x="89" y="137" width="42" height="42" rx="6"/>
+<rect class="normal" x="329" y="329" width="42" height="42" rx="6"/>
+<rect class="normal" x="329" y="377" width="42" height="42" rx="6"/>
+<rect class="normal" x="329" y="425" width="42" height="42" rx="6"/>
+<rect class="normal" x="329" y="473" width="42" height="42" rx="6"/>
+<rect class="dash" x="281" y="233" width="42" height="42" rx="6"/>
+<rect class="dash" x="281" y="281" width="42" height="42" rx="6"/>
+<rect class="dash" x="329" y="185" width="42" height="42" rx="6"/>
+<rect class="dash" x="329" y="233" width="42" height="42" rx="6"/>
+<rect class="dash" x="329" y="281" width="42" height="42" rx="6"/>
+<rect class="dash" x="41" y="41" width="42" height="42" rx="6"/>
+<rect class="dash" x="89" y="41" width="42" height="42" rx="6"/>
+<rect class="dash" x="137" y="41" width="42" height="42" rx="6"/>
+<rect class="dash" x="137" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="137" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="473" width="42" height="42" rx="6"/>
+<rect class="dash" x="329" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="281" width="42" height="42" rx="6"/>
+<rect class="dash" x="185" y="41" width="42" height="42" rx="6"/>
+<rect class="dash" x="185" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="185" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="425" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="425" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="473" width="42" height="42" rx="6"/>
+<rect class="dash" x="281" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="281" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="329" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="233" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="329" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="233" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="281" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="329" width="42" height="42" rx="6"/>
+<rect class="dash" x="233" y="41" width="42" height="42" rx="6"/>
+<rect class="dash" x="233" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="233" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="377" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="377" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="425" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="473" width="42" height="42" rx="6"/>
+<rect class="dash" x="281" y="41" width="42" height="42" rx="6"/>
+<rect class="dash" x="329" y="41" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="185" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="185" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="185" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="233" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="329" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="377" width="42" height="42" rx="6"/>
+<rect class="dash" x="521" y="425" width="42" height="42" rx="6"/>
+<rect class="dash" x="521" y="473" width="42" height="42" rx="6"/>
+<rect class="dash" x="521" y="185" width="42" height="42" rx="6"/>
+<rect class="dash" x="521" y="233" width="42" height="42" rx="6"/>
+<rect class="dash" x="521" y="329" width="42" height="42" rx="6"/>
+<rect class="dash" x="521" y="377" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="137" width="42" height="42" rx="6"/>
+<rect class="dash" x="569" y="425" width="42" height="42" rx="6"/>
+<rect class="dash" x="569" y="473" width="42" height="42" rx="6"/>
+<rect class="dash" x="521" y="281" width="42" height="42" rx="6"/>
+<rect class="dash" x="569" y="185" width="42" height="42" rx="6"/>
+<rect class="dash" x="569" y="233" width="42" height="42" rx="6"/>
+<rect class="dash" x="569" y="281" width="42" height="42" rx="6"/>
+<rect class="dash" x="569" y="329" width="42" height="42" rx="6"/>
+<rect class="dash" x="569" y="377" width="42" height="42" rx="6"/>
+<rect class="dash" x="377" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="425" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="473" y="89" width="42" height="42" rx="6"/>
+<rect class="dash" x="617" y="377" width="42" height="42" rx="6"/>
+<rect class="dash" x="617" y="425" width="42" height="42" rx="6"/>
+<rect class="dash" x="617" y="473" width="42" height="42" rx="6"/>
+<line class="wall" x1="374" y1="38" x2="374" y2="86"/>
+<line class="wall" x1="374" y1="86" x2="374" y2="134"/>
+<line class="wall" x1="374" y1="134" x2="374" y2="182"/>
+<line class="wall" x1="374" y1="182" x2="374" y2="230"/>
+<line class="wall" x1="374" y1="230" x2="374" y2="278"/>
+<line class="door" x1="374" y1="278" x2="374" y2="326"/>
+<line class="wall" x1="374" y1="326" x2="374" y2="374"/>
+<line class="wall" x1="374" y1="374" x2="374" y2="422"/>
+<line class="wall" x1="374" y1="422" x2="374" y2="470"/>
+<line class="wall" x1="86" y1="182" x2="134" y2="182"/>
+<line class="wall" x1="134" y1="182" x2="182" y2="182"/>
+<line class="wall" x1="182" y1="182" x2="230" y2="182"/>
+<line class="wall" x1="230" y1="182" x2="278" y2="182"/>
+<line class="wall" x1="278" y1="182" x2="326" y2="182"/>
+<line class="wall" x1="566" y1="182" x2="614" y2="182"/>
+<polyline class="route" points="158,350 158,398 206,398 254,398 302,350 350,302 398,302 446,350 494,350 542,350 590,350"/>
+<line class="risk" x1="542" y1="350" x2="590" y2="350"/>
+<rect class="token player" x="140" y="332" width="36" height="36" rx="11"/>
+<text class="tokenText" x="158" y="354">艾拉</text>
+<rect class="token ally" x="188" y="332" width="36" height="36" rx="11"/>
+<text class="tokenText" x="206" y="354">博林</text>
+<rect class="token enemy" x="476" y="284" width="36" height="36" rx="11"/>
+<text class="tokenText" x="494" y="306">哥布林 A</text>
+<rect class="token enemy" x="524" y="92" width="84" height="84" rx="11"/>
+<text class="tokenText" x="566" y="138">食人魔 A</text>
+<rect class="panel" x="748" y="0" width="390" height="556"/>
+<text class="label" x="772" y="44">STATIC SVG · 只读回退</text>
+<text class="heading" x="772" y="78">灰烬墓室交叉口</text>
+<text class="muted" x="772" y="104">player-aria-r17 · 玩家知识投影</text>
+<line class="rule" x1="772" y1="125" x2="1114" y2="125"/>
+<text class="label" x="772" y="155">艾拉 · 疾走路径预览</text>
+<text class="body" x="772" y="184">目标 L7　格距 50 尺</text>
+<text class="body" x="772" y="209">消耗 55 尺　剩余 0 尺</text>
+<text class="code" x="772" y="239">C7 → C8 → D8 → E8 → F7 → G6</text>
+<text class="code" x="772" y="260">H6 → I7 → J7 → K7 → L7</text>
+<text class="body" x="772" y="280">明显风险：1</text>
+<text class="muted" x="772" y="305">离开 哥布林 A 的 5 尺触及范围</text>
+<line class="rule" x1="772" y1="350" x2="1114" y2="350"/>
+<text class="legend" x="772" y="382">■ 青色：普通移动可达</text>
+<text class="legend" x="772" y="406">■ 琥珀：仅疾走可达</text>
+<text class="legend" x="772" y="430">■ 灰绿：困难地形（×2 消耗）</text>
+<text class="legend" x="772" y="454">━ 白线：最低移动消耗路径</text>
+<text class="legend" x="772" y="478">━ 红段：离开可见敌人触及范围</text>
+<text class="muted" x="772" y="520">未知信息不参与本图；此图不提交移动。</text>
+</svg>

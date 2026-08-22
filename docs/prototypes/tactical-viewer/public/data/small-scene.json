@@ -1,0 +1,347 @@
+{
+  "schemaVersion": "tactical-view-projection/v0-prototype",
+  "id": "crypt-crossing",
+  "title": "灰烬墓室交叉口",
+  "authorityRevision": "map-r17",
+  "projectionRevision": "player-aria-r17",
+  "audienceId": "player:aria",
+  "readOnly": true,
+  "grid": {
+    "width": 14,
+    "height": 10,
+    "feetPerCell": 5,
+    "coordinateStyle": "letters-numbers",
+    "diagonalRule": "every-square-5",
+    "preventCornerCutting": true
+  },
+  "terrain": [
+    {
+      "x": 3,
+      "y": 4,
+      "multiplier": 2
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "multiplier": 2
+    },
+    {
+      "x": 5,
+      "y": 4,
+      "multiplier": 2
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "multiplier": 2
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "multiplier": 2
+    },
+    {
+      "x": 4,
+      "y": 6,
+      "multiplier": 2
+    },
+    {
+      "x": 5,
+      "y": 6,
+      "multiplier": 2
+    },
+    {
+      "x": 9,
+      "y": 7,
+      "multiplier": 2
+    },
+    {
+      "x": 10,
+      "y": 7,
+      "multiplier": 2
+    },
+    {
+      "x": 11,
+      "y": 7,
+      "multiplier": 2
+    }
+  ],
+  "barriers": [
+    {
+      "id": "v-7-0",
+      "a": {
+        "x": 6,
+        "y": 0
+      },
+      "b": {
+        "x": 7,
+        "y": 0
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "v-7-1",
+      "a": {
+        "x": 6,
+        "y": 1
+      },
+      "b": {
+        "x": 7,
+        "y": 1
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "v-7-2",
+      "a": {
+        "x": 6,
+        "y": 2
+      },
+      "b": {
+        "x": 7,
+        "y": 2
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "v-7-3",
+      "a": {
+        "x": 6,
+        "y": 3
+      },
+      "b": {
+        "x": 7,
+        "y": 3
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "v-7-4",
+      "a": {
+        "x": 6,
+        "y": 4
+      },
+      "b": {
+        "x": 7,
+        "y": 4
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "v-7-5",
+      "a": {
+        "x": 6,
+        "y": 5
+      },
+      "b": {
+        "x": 7,
+        "y": 5
+      },
+      "kind": "door",
+      "open": true,
+      "label": "敞开的橡木门"
+    },
+    {
+      "id": "v-7-6",
+      "a": {
+        "x": 6,
+        "y": 6
+      },
+      "b": {
+        "x": 7,
+        "y": 6
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "v-7-7",
+      "a": {
+        "x": 6,
+        "y": 7
+      },
+      "b": {
+        "x": 7,
+        "y": 7
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "v-7-8",
+      "a": {
+        "x": 6,
+        "y": 8
+      },
+      "b": {
+        "x": 7,
+        "y": 8
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "h-1-3",
+      "a": {
+        "x": 1,
+        "y": 2
+      },
+      "b": {
+        "x": 1,
+        "y": 3
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "h-2-3",
+      "a": {
+        "x": 2,
+        "y": 2
+      },
+      "b": {
+        "x": 2,
+        "y": 3
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "h-3-3",
+      "a": {
+        "x": 3,
+        "y": 2
+      },
+      "b": {
+        "x": 3,
+        "y": 3
+      },
+      "kind": "door",
+      "open": false,
+      "label": "关闭的铁门"
+    },
+    {
+      "id": "h-4-3",
+      "a": {
+        "x": 4,
+        "y": 2
+      },
+      "b": {
+        "x": 4,
+        "y": 3
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "h-5-3",
+      "a": {
+        "x": 5,
+        "y": 2
+      },
+      "b": {
+        "x": 5,
+        "y": 3
+      },
+      "kind": "wall",
+      "open": false
+    },
+    {
+      "id": "wall-11-2-11-3",
+      "a": {
+        "x": 11,
+        "y": 2
+      },
+      "b": {
+        "x": 11,
+        "y": 3
+      },
+      "kind": "wall",
+      "open": false
+    }
+  ],
+  "entities": [
+    {
+      "id": "pc-aria",
+      "label": "艾拉",
+      "kind": "player",
+      "position": {
+        "x": 2,
+        "y": 6
+      },
+      "sizeCells": 1,
+      "blocksMovement": true,
+      "movement": {
+        "speedFeet": 30,
+        "usedFeet": 5
+      },
+      "conditions": [
+        "专注"
+      ],
+      "selectable": true
+    },
+    {
+      "id": "ally-borin",
+      "label": "博林",
+      "kind": "ally",
+      "position": {
+        "x": 3,
+        "y": 6
+      },
+      "sizeCells": 1,
+      "blocksMovement": true,
+      "conditions": [
+        "正常"
+      ],
+      "selectable": false
+    },
+    {
+      "id": "enemy-goblin-a",
+      "label": "哥布林 A",
+      "kind": "enemy",
+      "position": {
+        "x": 9,
+        "y": 5
+      },
+      "sizeCells": 1,
+      "reachFeet": 5,
+      "blocksMovement": true,
+      "conditions": [
+        "可见"
+      ],
+      "selectable": false
+    },
+    {
+      "id": "enemy-ogre-a",
+      "label": "食人魔 A",
+      "kind": "enemy",
+      "position": {
+        "x": 10,
+        "y": 1
+      },
+      "sizeCells": 2,
+      "reachFeet": 5,
+      "blocksMovement": true,
+      "conditions": [
+        "可见"
+      ],
+      "selectable": false
+    }
+  ],
+  "controllableEntityIds": [
+    "pc-aria"
+  ],
+  "fallbackTarget": {
+    "x": 11,
+    "y": 6
+  },
+  "benchmarkTarget": {
+    "x": 11,
+    "y": 6
+  }
+}

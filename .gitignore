@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# 开发期受限参考资料不进入仓库，仅保留边界说明。
+docs/reference/**
+!docs/reference/README.md

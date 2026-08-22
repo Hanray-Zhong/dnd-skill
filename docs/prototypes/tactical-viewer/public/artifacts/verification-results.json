@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "checks": 18,
+  "projectionIsolation": "秘密实体、陷阱和秘密通道与无秘密基线产生完全相同的玩家投影",
+  "readOnlyDigest": "5916247e",
+  "smallMap": {
+    "normalBudgetFeet": 25,
+    "dashBudgetFeet": 55,
+    "normalReachableCells": 47,
+    "dashReachableCells": 112,
+    "target": "L7",
+    "pathDistanceFeet": 50,
+    "pathCostFeet": 55,
+    "pathRemainingFeet": 0,
+    "visibleRiskCount": 1
+  },
+  "largeMap": {
+    "dimensions": "50×50",
+    "publicEntities": 12,
+    "publicBarriers": 300
+  }
+}

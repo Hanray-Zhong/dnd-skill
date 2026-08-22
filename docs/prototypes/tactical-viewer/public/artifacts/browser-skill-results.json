@@ -1,0 +1,225 @@
+{
+  "testedWith": "browser:control-in-app-browser / Codex In-app Browser",
+  "smallInteraction": {
+    "normal": {
+      "readOnly": true,
+      "authorityRevision": "map-r17",
+      "projectionRevision": "player-aria-r17",
+      "authoritySnapshotUnchanged": true,
+      "selectedEntity": {
+        "id": "pc-aria",
+        "coordinate": "C7",
+        "speedFeet": 30,
+        "usedFeet": 5,
+        "sizeCells": 1,
+        "conditions": [
+          "专注"
+        ]
+      },
+      "movementMode": "normal",
+      "budgetFeet": 25,
+      "reachableCellCount": 47,
+      "target": null,
+      "path": [],
+      "visibleRisks": [],
+      "timingsMs": {
+        "generationMs": 1.5,
+        "highlightMs": 1.6999999955296516,
+        "pathMs": null,
+        "cacheHit": false
+      }
+    },
+    "dashPath": {
+      "readOnly": true,
+      "authorityRevision": "map-r17",
+      "projectionRevision": "player-aria-r17",
+      "authoritySnapshotUnchanged": true,
+      "selectedEntity": {
+        "id": "pc-aria",
+        "coordinate": "C7",
+        "speedFeet": 30,
+        "usedFeet": 5,
+        "sizeCells": 1,
+        "conditions": [
+          "专注"
+        ]
+      },
+      "movementMode": "dash",
+      "budgetFeet": 55,
+      "reachableCellCount": 112,
+      "target": "L7",
+      "path": [
+        "C7",
+        "C8",
+        "D8",
+        "E8",
+        "F7",
+        "G6",
+        "H6",
+        "I7",
+        "J7",
+        "K7",
+        "L7"
+      ],
+      "visibleRisks": [
+        "离开 哥布林 A 的 5 尺触及范围"
+      ],
+      "timingsMs": {
+        "generationMs": 0.7000000029802322,
+        "highlightMs": 1.3999999985098839,
+        "pathMs": 0.5,
+        "cacheHit": false
+      }
+    }
+  },
+  "largeInteraction": {
+    "readOnly": true,
+    "authorityRevision": "map-stress-r3",
+    "projectionRevision": "player-aria-stress-r3",
+    "authoritySnapshotUnchanged": true,
+    "selectedEntity": {
+      "id": "pc-large-1",
+      "coordinate": "C47",
+      "speedFeet": 30,
+      "usedFeet": 0,
+      "sizeCells": 1,
+      "conditions": [
+        "正常"
+      ]
+    },
+    "movementMode": "dash",
+    "budgetFeet": 60,
+    "reachableCellCount": 190,
+    "target": "J42",
+    "path": [
+      "C47",
+      "D46",
+      "E46",
+      "F46",
+      "G45",
+      "H44",
+      "I43",
+      "J42"
+    ],
+    "visibleRisks": [],
+    "timingsMs": {
+      "generationMs": 5.600000001490116,
+      "highlightMs": 3,
+      "pathMs": 1.6000000014901161,
+      "cacheHit": false
+    }
+  },
+  "performance": {
+    "small": {
+      "map": "small",
+      "dimensions": "14×10",
+      "iterations": 20,
+      "visibleInput": {
+        "cells": 140,
+        "terrainCells": 10,
+        "barriers": 15,
+        "entities": 4,
+        "controllablePlayers": 1
+      },
+      "visibleProjectionBytes": 2739,
+      "revisionRenderMs": {
+        "median": 0.8,
+        "p95": 1.5,
+        "min": 0.6,
+        "max": 3.9
+      },
+      "clickHighlightMs": {
+        "median": 0.8,
+        "p95": 1.6,
+        "min": 0.6,
+        "max": 2.3
+      },
+      "pathPreviewMs": {
+        "median": 0.1,
+        "p95": 0.2,
+        "min": 0,
+        "max": 0.3
+      },
+      "precomputeAllFullTreesMs": {
+        "median": 0.5,
+        "p95": 1.1,
+        "min": 0.4,
+        "max": 1.6
+      },
+      "precomputeAllFullTreesPayloadBytes": 4009,
+      "selectedReachableCells": 112,
+      "selectedExpandedStates": 112,
+      "benchmarkTarget": "L7"
+    },
+    "large": {
+      "map": "large",
+      "dimensions": "50×50",
+      "iterations": 20,
+      "visibleInput": {
+        "cells": 2500,
+        "terrainCells": 204,
+        "barriers": 300,
+        "entities": 12,
+        "controllablePlayers": 4
+      },
+      "visibleProjectionBytes": 34601,
+      "revisionRenderMs": {
+        "median": 8.6,
+        "p95": 10.1,
+        "min": 7.7,
+        "max": 11.6
+      },
+      "clickHighlightMs": {
+        "median": 1.2,
+        "p95": 1.4,
+        "min": 1.1,
+        "max": 3.5
+      },
+      "pathPreviewMs": {
+        "median": 0.1,
+        "p95": 0.2,
+        "min": 0,
+        "max": 0.2
+      },
+      "precomputeAllFullTreesMs": {
+        "median": 33.8,
+        "p95": 46.8,
+        "min": 33,
+        "max": 49.9
+      },
+      "precomputeAllFullTreesPayloadBytes": 344338,
+      "selectedReachableCells": 190,
+      "selectedExpandedStates": 190,
+      "benchmarkTarget": "J42"
+    }
+  },
+  "informationAndMutationChecks": {
+    "draggableElements": 0,
+    "forbiddenFixtureMarkersPresent": false,
+    "forms": 0,
+    "viewport": {
+      "devicePixelRatio": 2,
+      "height": 998,
+      "width": 707
+    }
+  },
+  "staticFallback": {
+    "containsCompleteRouteEnd": true,
+    "hasSvg": true,
+    "legendCount": 5,
+    "scriptCount": 0,
+    "title": "灰烬墓室交叉口的只读静态战术地图"
+  },
+  "consoleWarningsOrErrorsOnFreshInteractionTab": [],
+  "screenshotPaths": [
+    "public/artifacts/screenshots/iab-small-a-dash-path.png",
+    "public/artifacts/screenshots/iab-small-b-route-workbench.png",
+    "public/artifacts/screenshots/iab-small-c-quiet-table.png",
+    "public/artifacts/screenshots/iab-large-50x50-path.png",
+    "public/artifacts/screenshots/iab-static-fallback.png"
+  ],
+  "issuesFoundAndFixed": [
+    "折叠性能诊断固定在左下角时会遮挡窄视口压力图棋子；已移入普通文档流。",
+    "C 方案的浮动摘要在 1280px 宽度会遮挡目标格；已改为全宽地图下方的双列摘要托盘。"
+  ]
+}
