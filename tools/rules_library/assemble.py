@@ -340,6 +340,8 @@ def _rule_exception_records(
         if (
             specific_id == general_id
             or specific.get("category") == "semantic_section"
+            or specific.get("extraction_status") != "verified"
+            or general.get("extraction_status") != "verified"
             or general.get("rule_status") != "default"
             or not isinstance(references, list)
             or not all(isinstance(reference, str) for reference in references)

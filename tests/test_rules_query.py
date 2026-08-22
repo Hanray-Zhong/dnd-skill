@@ -424,6 +424,31 @@ class RulesQueryFacadeTests(unittest.TestCase):
             self.assertEqual("broken_rule_exception_reference", error["error"]["code"])
             self.assertFalse(library.exists())
 
+    def test_specific_entity_resolution_rejects_an_index_only_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            fixture = _synthetic_fixture()
+            fixture["pages"][0]["blocks"][0]["extraction_status"] = "index_only"
+            fixture["pages"][0]["blocks"][1]["text"] = (
+                "一般规则：有遮蔽的目标会受到星光术影响。"
+            )
+            fixture["pages"][1]["blocks"][0]["text"] = (
+                "跨页部分保留例外：有遮蔽的目标不受影响。"
+            )
+            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
+
+            library, result = run_synthetic_library_build(
+                root,
+                fixture=fixture,
+                rule_exceptions=[_verified_rule_exception()],
+            )
+            error = json.loads(result.stderr) if result.stderr else None
+
+            self.assertEqual(2, result.returncode)
+            assert isinstance(error, dict)
+            self.assertEqual("invalid_rule_exception", error["error"]["code"])
+            self.assertFalse(library.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

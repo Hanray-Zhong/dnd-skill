@@ -60,6 +60,8 @@ def validate_rule_exceptions(
             or general is None
             or specific_id == general_id
             or specific.get("category") == "semantic_section"
+            or specific.get("extraction_status") != "verified"
+            or general.get("extraction_status") != "verified"
             or general.get("rule_status") != "default"
             or raw_item.get("review_status") != "verified"
             or raw_item["general_value"] == raw_item["specific_value"]
