@@ -6,14 +6,15 @@ import json
 from pathlib import Path
 import re
 
-from tools.rules_library.baseline import RuleExceptionSpec, SourceSpec
+from tools.rules_library.baseline import FormulaSpec, RuleExceptionSpec, SourceSpec
 from tools.rules_library.coverage import coverage_record
 from tools.rules_library.errors import BuildError
+from tools.rules_library.formulas import formula_catalog_payload, formula_records
 from tools.rules_library.models import DraftAsset, ExtractedSource
 from tools.rules_library.text import lookup_key
 
 
-BUILD_TOOL_VERSION = "rules-library-builder-v3"
+BUILD_TOOL_VERSION = "rules-library-builder-v4"
 NORMALIZER_VERSION = "semantic-markdown-v2"
 
 
@@ -289,9 +290,12 @@ def _source_record(extracted: ExtractedSource) -> dict[str, object]:
     }
 
 
-def _resolve_exception_rule(
+def _resolve_rule(
     alias: str,
     index_items: list[dict[str, object]],
+    *,
+    error_code: str,
+    error_message: str,
 ) -> dict[str, object]:
     normalized_alias = lookup_key(alias)
     matches: list[dict[str, object]] = []
@@ -306,8 +310,8 @@ def _resolve_exception_rule(
             matches.append(item)
     if len(matches) != 1:
         raise BuildError(
-            "unresolved_rule_exception",
-            "规则例外声明无法唯一定位规则条目。",
+            error_code,
+            f"{error_message}别名：{alias}；匹配数：{len(matches)}。",
         )
     return matches[0]
 
@@ -331,8 +335,18 @@ def _rule_exception_records(
                 "unreviewed_rule_exception",
                 "规则例外声明尚未完成复核。",
             )
-        specific = _resolve_exception_rule(spec.specific_rule_alias, index_items)
-        general = _resolve_exception_rule(spec.general_rule_alias, index_items)
+        specific = _resolve_rule(
+            spec.specific_rule_alias,
+            index_items,
+            error_code="unresolved_rule_exception",
+            error_message="规则例外声明无法唯一定位规则条目。",
+        )
+        general = _resolve_rule(
+            spec.general_rule_alias,
+            index_items,
+            error_code="unresolved_rule_exception",
+            error_message="规则例外声明无法唯一定位规则条目。",
+        )
         specific_id = str(specific["id"])
         general_id = str(general["id"])
         pair = (specific_id, general_id)
@@ -396,12 +410,15 @@ def assemble_library(
     staging: Path,
     extracted_sources: tuple[ExtractedSource, ...],
     rule_exceptions: tuple[RuleExceptionSpec, ...],
+    formula_catalog_version: str,
+    formulas: tuple[FormulaSpec, ...],
 ) -> dict[str, object]:
     (staging / "sections").mkdir()
     (staging / "entities").mkdir()
     index_items, coverage_items, drafts = _asset_records(staging, extracted_sources)
     _add_backlinks(index_items)
     exception_items = _rule_exception_records(rule_exceptions, index_items, drafts)
+    formula_items = formula_records(formulas, index_items, drafts)
     index_items.sort(key=lambda item: str(item["id"]))
     coverage_items.sort(key=lambda item: str(item["asset_id"]))
     if len(index_items) != len(coverage_items):
@@ -427,6 +444,10 @@ def assemble_library(
         staging / "exceptions.json",
         {"format": "dnd-rules-exceptions-v1", "items": exception_items},
     )
+    formulas_hash = write_json(
+        staging / "formulas.json",
+        formula_catalog_payload(formula_catalog_version, formula_items),
+    )
     public_ready = all(
         isinstance(item["rights"], dict)
         and item["rights"].get("status") == "authorized"
@@ -447,6 +468,7 @@ def assemble_library(
         "coverage_sha256": coverage_hash,
         "blocked_sha256": blocked_hash,
         "exceptions_sha256": exceptions_hash,
+        "formulas_sha256": formulas_hash,
         "asset_count": len(index_items),
         "category_counts": dict(
             sorted(Counter(draft.category for draft in drafts).items())

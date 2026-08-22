@@ -15,6 +15,38 @@
       "review_evidence": "https://github.com/Hanray-Zhong/dnd-skill/issues/5"
     }
   ],
+  "formula_catalog": {
+    "version": "core-cn-2014-formulas-v1",
+    "formulas": [
+      {
+        "id": "ability-modifier",
+        "version": "1",
+        "title": "属性调整值",
+        "input": {
+          "id": "ability_score",
+          "unit": "ability_score",
+          "minimum": 1,
+          "maximum": 30
+        },
+        "result_unit": "ability_modifier",
+        "subtract": 10,
+        "divisor": 2,
+        "rounding": "floor",
+        "modifier_operations": ["add", "override"],
+        "priority_order": [
+          "approved_table_rule",
+          "module_override",
+          "specific_exception",
+          "enabled_rule",
+          "default_rule"
+        ],
+        "source_rule_alias": "第7章：属性值应用",
+        "source_evidence": "属性值减去 10 然后除以 2",
+        "rounding_rule_alias": "向下取整",
+        "rounding_evidence": "必须舍去所有小数"
+      }
+    ]
+  },
   "sources": [
     {
       "id": "phb-cn-1.72",

@@ -50,6 +50,8 @@ def build_library(
             staging,
             extracted_sources,
             baseline.rule_exceptions,
+            baseline.formula_catalog_version,
+            baseline.formulas,
         )
         identity = result["identity"]
         if not isinstance(identity, dict):

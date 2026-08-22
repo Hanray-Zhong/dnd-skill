@@ -1,0 +1,62 @@
+{
+  "catalog_sha256": "932a73e5f2714ad0fe4e12f47ccbe82b50897fa86c8537117dc523952d1cc25e",
+  "catalog_version": "core-cn-2014-formulas-v1",
+  "format": "dnd-formula-catalog-v1",
+  "formula_count": 1,
+  "formulas": [
+    {
+      "expression": {
+        "divisor": 2,
+        "kind": "subtract_divide",
+        "subtract": 10
+      },
+      "id": "ability-modifier",
+      "input": {
+        "id": "ability_score",
+        "maximum": 30,
+        "minimum": 1,
+        "type": "integer",
+        "unit": "ability_score"
+      },
+      "modifiers": {
+        "allowed_operations": [
+          "add",
+          "override"
+        ],
+        "priority_order": [
+          "approved_table_rule",
+          "module_override",
+          "specific_exception",
+          "enabled_rule",
+          "default_rule"
+        ],
+        "target_input": "ability_score"
+      },
+      "result": {
+        "rounding": "floor",
+        "rounding_evidence": "必须舍去所有小数",
+        "rounding_rule_id": "phb-cn-1.72-semantic-section-7f9d9ea3377e",
+        "unit": "ability_modifier"
+      },
+      "source": {
+        "content_sha256": "b81fe16ebdb72735e451cb73ce9ab3989f70f6aa41b56b76ef6994c2784c70d8",
+        "evidence": "属性值减去 10 然后除以 2",
+        "pages": [
+          {
+            "label": "173",
+            "pdf_page": 173
+          }
+        ],
+        "rule_id": "phb-cn-1.72-semantic-section-c9a5509d0dc2",
+        "source": {
+          "id": "phb-cn-1.72",
+          "sha256": "0f6ce6167a9812d43a4942a4754ce6ae6b53e5f6b98f1e59c6491f3ca46d87b3",
+          "title": "《玩家手册》中译 v1.72",
+          "version": "1.72"
+        }
+      },
+      "title": "属性调整值",
+      "version": "1"
+    }
+  ]
+}

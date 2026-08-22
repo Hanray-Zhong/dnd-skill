@@ -19,6 +19,7 @@ class AudienceDefinition(TypedDict):
 
 
 AudienceMap: TypeAlias = dict[str, AudienceDefinition]
+DerivedValueMap: TypeAlias = dict[str, dict[str, dict[str, object]]]
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class CampaignSummary:
     campaign_status: str
     initial_config: dict[str, object]
     audiences: AudienceMap = field(default_factory=dict)
+    derived_values: DerivedValueMap = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -86,6 +88,28 @@ class MessageRecord:
     summary: CampaignSummary
     event_id: str
     request: MessageRecordRequest
+    replayed: bool
+
+
+@dataclass(frozen=True)
+class FormulaCalculationRequest:
+    expected_revision: int
+    idempotency_key: str
+    character_id: str
+    formula_id: str
+    inputs: dict[str, object]
+    modifiers: list[dict[str, object]]
+    calculation: dict[str, object]
+    source: str
+    audience_id: str
+
+
+@dataclass(frozen=True)
+class FormulaCalculationUpdate:
+    summary: CampaignSummary
+    event_id: str
+    request: FormulaCalculationRequest
+    calculation: dict[str, object]
     replayed: bool
 
 

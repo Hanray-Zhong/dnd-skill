@@ -14,6 +14,7 @@ description: 作为唯一玩家主持门面创建、打开并主持 D&D 5E 战�
 - `dnd-5e configure <workspace> --expected-revision <revision> --idempotency-key <key> --difficulty <value>`：在 Session Zero 阶段原子修改难度策略；
 - `dnd-5e session-zero <workspace> --expected-revision <revision> --idempotency-key <key> --configuration <json-object>`：确认完整名册、控制权、安全边界和团前策略，生成初始受众并进入可开团状态；
 - `dnd-5e message <workspace> --speaker <player-id> [--character <character-id>] --scene <scene-id> --input-reference <reference> [--expected-revision <revision>] --text <message>`：校验发言者与角色控制权，分类运行期消息并返回场景叙事、桌务提示和审计记录；
+- `dnd-5e recalculate <workspace> --expected-revision <revision> --idempotency-key <key> --character <character-id> --formula <formula-id> --inputs <json-object> [--modifiers <json-array>]`：通过固定公式目录重算一项角色派生数据，并在状态边界复算后原子保存；
 - `dnd-5e open <workspace>`：验证并重新打开既有战役；
 - `dnd-5e rules-query (--id <stable-id> | --alias <alias> | --topic <topic>) [--limit <n>]`：只从已安装的固定 Markdown 规则章节库定向读取匹配单元。源码开发时可由维护者额外传入 `--library <generated-library>`。
 
@@ -22,3 +23,5 @@ description: 作为唯一玩家主持门面创建、打开并主持 D&D 5E 战�
 消息语法固定为中文双引号角色对话、半角星号角色行动、`（内心：……）` 角色内心、`//` OOC 与 `【……】` 待验证系统消息或人类骰子报告；未标记文本按 OOC 处理，显式 OOC 前缀优先。`scene` 必须指向权威场景；当前 Session Zero 建立 `table` 共享场景。调用方提供的 `speaker` 必须同时属于稳定玩家名册和该场景的交互参与者，角色消息还必须匹配名册与场景冻结的角色控制。文本本身不能授予系统身份或修改状态。需要落盘的角色消息必须携带当前修订，并在重试时复用完全相同的原始输入引用；普通 OOC 与 `【……】` 输入不落盘。分类阶段的场景叙事层不回显玩家输入为新事实；角色行动只形成待解析桌务项，不能直接当作已经发生的世界事实。
 
 规则查询只把返回的固定资产作为来源，不得在未命中、规则状态为待复核或文件哈希不符时用模型常识补写。不得向玩家播报内部 Skill 路由，不得在门面中复制规则计算或领域状态。
+
+公式重算只接受公式目录声明的输入、单位、修正操作和优先级。必须把缺失输入、单位不一致、同优先级冲突或目录身份错误作为拒绝返回，不得临时心算后绕过审计轨迹或状态事务。

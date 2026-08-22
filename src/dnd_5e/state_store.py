@@ -6,6 +6,7 @@ import sqlite3
 
 from dnd_5e.state.audiences import read_audiences
 from dnd_5e.state.encoding import canonical_json
+from dnd_5e.state.formulas import read_derived_values
 from dnd_5e.state.types import (
     AWAITING_SESSION_ZERO,
     CampaignConfigRequest,
@@ -430,6 +431,7 @@ def read_state_store(database_path: Path) -> CampaignSummary:
             )
 
         audiences = read_audiences(connection)
+        derived_values = read_derived_values(connection)
 
         metadata = connection.execute(
             """
@@ -479,4 +481,5 @@ def read_state_store(database_path: Path) -> CampaignSummary:
         campaign_status=campaign_status,
         initial_config=initial_config,
         audiences=audiences,
+        derived_values=derived_values,
     )

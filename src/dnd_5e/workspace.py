@@ -12,6 +12,7 @@ import uuid
 from dnd_5e import __version__
 from dnd_5e.catalog import skill_suite_sha256
 from dnd_5e.errors import FacadeError
+from dnd_5e.formulas import installed_formula_catalog_identity
 from dnd_5e.rules import installed_library_identity
 from dnd_5e.state.types import (
     CampaignConfigRequest,
@@ -89,8 +90,7 @@ def _compatibility_manifest() -> dict[str, dict[str, str]]:
             **installed_library_identity(),
         },
         "formula_catalog": {
-            "version": "bootstrap-empty-v1",
-            "sha256": _sha256({"formulas": [], "tables": []}),
+            **installed_formula_catalog_identity(),
         },
         "state_schema": {
             "version": STATE_SCHEMA_VERSION,

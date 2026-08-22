@@ -12,6 +12,13 @@ from tools.rules_library.errors import BuildError
 
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _EXCEPTION_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{2,127}$")
+FORMULA_PRIORITY_ORDER = (
+    "approved_table_rule",
+    "module_override",
+    "specific_exception",
+    "enabled_rule",
+    "default_rule",
+)
 
 
 @dataclass(frozen=True)
@@ -40,10 +47,33 @@ class RuleExceptionSpec:
 
 
 @dataclass(frozen=True)
+class FormulaSpec:
+    formula_id: str
+    version: str
+    title: str
+    input_id: str
+    input_unit: str
+    input_minimum: int
+    input_maximum: int
+    result_unit: str
+    subtract: int
+    divisor: int
+    rounding: str
+    modifier_operations: tuple[str, ...]
+    priority_order: tuple[str, ...]
+    source_rule_alias: str
+    source_evidence: str
+    rounding_rule_alias: str
+    rounding_evidence: str
+
+
+@dataclass(frozen=True)
 class Baseline:
     library_version: str
     sources: tuple[SourceSpec, ...]
     rule_exceptions: tuple[RuleExceptionSpec, ...]
+    formula_catalog_version: str
+    formulas: tuple[FormulaSpec, ...]
 
 
 @dataclass(frozen=True)
@@ -116,6 +146,105 @@ def _load_rule_exceptions(loaded: dict[str, Any]) -> tuple[RuleExceptionSpec, ..
     return tuple(exceptions)
 
 
+def _string_list(mapping: dict[str, Any], key: str) -> tuple[str, ...]:
+    value = mapping.get(key)
+    if (
+        not isinstance(value, list)
+        or not value
+        or not all(isinstance(item, str) and item for item in value)
+        or len(set(value)) != len(value)
+    ):
+        raise BuildError("invalid_baseline", "规则基线清单无效。")
+    return tuple(value)
+
+
+def _load_formula_catalog(
+    loaded: dict[str, Any],
+) -> tuple[str, tuple[FormulaSpec, ...]]:
+    raw_catalog = loaded.get("formula_catalog")
+    if raw_catalog is None:
+        return "bootstrap-empty-v1", ()
+    if not isinstance(raw_catalog, dict) or set(raw_catalog) != {
+        "version",
+        "formulas",
+    }:
+        raise BuildError("invalid_baseline", "规则基线清单无效。")
+    catalog_version = _required_string(raw_catalog, "version")
+    raw_formulas = raw_catalog.get("formulas")
+    if not isinstance(raw_formulas, list):
+        raise BuildError("invalid_baseline", "规则基线清单无效。")
+    required_keys = {
+        "id",
+        "version",
+        "title",
+        "input",
+        "result_unit",
+        "subtract",
+        "divisor",
+        "rounding",
+        "modifier_operations",
+        "priority_order",
+        "source_rule_alias",
+        "source_evidence",
+        "rounding_rule_alias",
+        "rounding_evidence",
+    }
+    formulas: list[FormulaSpec] = []
+    seen_ids: set[str] = set()
+    for raw_formula in raw_formulas:
+        if not isinstance(raw_formula, dict) or set(raw_formula) != required_keys:
+            raise BuildError("invalid_baseline", "规则基线清单无效。")
+        formula_id = _required_string(raw_formula, "id")
+        raw_input = raw_formula.get("input")
+        operations = _string_list(raw_formula, "modifier_operations")
+        priorities = _string_list(raw_formula, "priority_order")
+        if (
+            formula_id in seen_ids
+            or not _EXCEPTION_ID_PATTERN.fullmatch(formula_id)
+            or not isinstance(raw_input, dict)
+            or set(raw_input) != {"id", "unit", "minimum", "maximum"}
+            or type(raw_input.get("minimum")) is not int
+            or type(raw_input.get("maximum")) is not int
+            or raw_input["minimum"] > raw_input["maximum"]
+            or type(raw_formula.get("subtract")) is not int
+            or type(raw_formula.get("divisor")) is not int
+            or raw_formula["divisor"] <= 0
+            or raw_formula.get("rounding") != "floor"
+            or operations != ("add", "override")
+            or priorities != FORMULA_PRIORITY_ORDER
+        ):
+            raise BuildError("invalid_baseline", "规则基线清单无效。")
+        seen_ids.add(formula_id)
+        formulas.append(
+            FormulaSpec(
+                formula_id=formula_id,
+                version=_required_string(raw_formula, "version"),
+                title=_required_string(raw_formula, "title"),
+                input_id=_required_string(raw_input, "id"),
+                input_unit=_required_string(raw_input, "unit"),
+                input_minimum=raw_input["minimum"],
+                input_maximum=raw_input["maximum"],
+                result_unit=_required_string(raw_formula, "result_unit"),
+                subtract=raw_formula["subtract"],
+                divisor=raw_formula["divisor"],
+                rounding="floor",
+                modifier_operations=operations,
+                priority_order=priorities,
+                source_rule_alias=_required_string(
+                    raw_formula, "source_rule_alias"
+                ),
+                source_evidence=_required_string(raw_formula, "source_evidence"),
+                rounding_rule_alias=_required_string(
+                    raw_formula, "rounding_rule_alias"
+                ),
+                rounding_evidence=_required_string(
+                    raw_formula, "rounding_evidence"
+                ),
+            )
+        )
+    return catalog_version, tuple(formulas)
+
+
 def load_baseline(path: Path) -> Baseline:
     loaded = _load_json_object(path)
     raw_sources = loaded.get("sources")
@@ -159,10 +288,13 @@ def load_baseline(path: Path) -> Baseline:
                 },
             )
         )
+    formula_catalog_version, formulas = _load_formula_catalog(loaded)
     return Baseline(
         library_version=_required_string(loaded, "library_version"),
         sources=tuple(sources),
         rule_exceptions=_load_rule_exceptions(loaded),
+        formula_catalog_version=formula_catalog_version,
+        formulas=formulas,
     )
 
 
