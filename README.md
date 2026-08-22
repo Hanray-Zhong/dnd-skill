@@ -1,6 +1,6 @@
 # D&D 5E 跑团 Skill Suite
 
-本仓库正在实现由单一 `dnd-5e` 主持门面协调的十一项本地优先 Skill。当前纵向切片支持创建和重新打开空战役、修改团前难度策略、在全员确认后完成 Session Zero，并提供完整三宝书的开发构建与固定 Markdown 规则资产查询。状态请求贯通幂等重试、乐观并发、不可变事件、修订号与崩溃恢复语义；规则查询支持稳定 ID、别名和主题入口，并能对存在可追溯关联的实体说明与一般规则给出具体优先的决策记录。
+本仓库正在实现由单一 `dnd-5e` 主持门面协调的十一项本地优先 Skill。当前纵向切片支持创建和重新打开空战役、修改团前难度策略、在全员确认后完成 Session Zero，并提供完整三宝书的开发构建与固定 Markdown 规则资产查询。状态请求贯通幂等重试、乐观并发、不可变事件、修订号与崩溃恢复语义；规则查询支持稳定 ID、别名和主题入口，并能对具有可追溯关联与有界原文证据的实体说明和一般规则给出具体优先的决策记录。
 
 ## 运行要求
 
@@ -30,8 +30,9 @@ PYTHONPATH=src python -m dnd_5e open /path/to/empty-campaign
 PYTHONPATH=src python -m dnd_5e rules-query \
   --library build/rules-library --alias '火球术'
 PYTHONPATH=src python -m dnd_5e rules-query \
-  --library build/rules-library --alias '火球术' \
-  --general-rule-id dmg-cn-1.1-semantic-section-bc7e083f6ebe
+  --library build/rules-library --alias '行动自如' \
+  --general-rule-id phb-cn-1.72-condition-d0b19d83ea08 \
+  --conflict '{"scope":"行动自如目标是否承受魔法束缚的速度归零","general_value":"速度变为 0","specific_value":"无法生效","general_evidence":"被束缚生物的速度变为 0","specific_evidence":"法术或魔法效应对其无法生效"}'
 ```
 
 安装本项目后也可使用等价的 `dnd-5e` 命令。成功结果以 JSON 输出到 stdout；可预期的拒绝以 JSON 输出到 stderr，并使用退出码 `2`。新建空战役返回 `campaign_status: "awaiting_session_zero"`、`next_step: "session_zero"` 和 `ready_to_play: false`：这表示工作区可继续配置，不表示已经可以跳过 Session Zero 开始游戏。

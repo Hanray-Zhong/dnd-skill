@@ -8,6 +8,7 @@ import re
 from typing import Any, cast
 
 from dnd_5e.errors import FacadeError
+from dnd_5e.rules.resolution import build_specific_exception_decision
 
 
 _MANIFEST_IDENTITY_KEYS = (
@@ -82,6 +83,59 @@ def _sha256(content: bytes) -> str:
 
 def _normalized_lookup(value: str) -> str:
     return re.sub(r"[\W_]+", "", value, flags=re.UNICODE).casefold()
+
+
+def _matching_items(
+    items: tuple[dict[str, object], ...],
+    *,
+    kind: str,
+    value: str,
+    entities_only: bool = False,
+) -> list[dict[str, object]]:
+    normalized_value = _normalized_lookup(value)
+    authoritative_items = [
+        item
+        for item in items
+        if item["extraction_status"] == "verified"
+        and (not entities_only or item["category"] != "semantic_section")
+    ]
+    if kind == "id":
+        matches = [item for item in authoritative_items if item["id"] == value]
+    elif kind == "alias":
+        matches = []
+        for item in authoritative_items:
+            aliases = item["aliases"]
+            if not isinstance(aliases, list):
+                raise _invalid_library()
+            if any(
+                isinstance(alias, str)
+                and _normalized_lookup(alias) == normalized_value
+                for alias in aliases
+            ):
+                matches.append(item)
+    elif kind == "topic":
+        matches = []
+        for item in authoritative_items:
+            title = item["title"]
+            aliases = item["aliases"]
+            chapter_path = item["chapter_path"]
+            if (
+                not isinstance(title, str)
+                or not isinstance(aliases, list)
+                or not isinstance(chapter_path, list)
+            ):
+                raise _invalid_library()
+            searchable_values = [title, *aliases, *chapter_path]
+            if any(
+                isinstance(candidate, str)
+                and normalized_value in _normalized_lookup(candidate)
+                for candidate in searchable_values
+            ):
+                matches.append(item)
+    else:
+        raise AssertionError(f"未知查询类型：{kind}")
+    matches.sort(key=lambda item: str(item["id"]))
+    return matches
 
 
 def default_library_root() -> Path:
@@ -321,45 +375,7 @@ class RulesLibrary:
         value: str,
         limit: int = 20,
     ) -> list[dict[str, object]]:
-        normalized_value = _normalized_lookup(value)
-        matches: list[dict[str, object]] = []
-        authoritative_items = [
-            item for item in self._items if item["extraction_status"] == "verified"
-        ]
-        if kind == "id":
-            matches = [item for item in authoritative_items if item["id"] == value]
-        elif kind == "alias":
-            for item in authoritative_items:
-                aliases = item["aliases"]
-                if not isinstance(aliases, list):
-                    raise _invalid_library()
-                if any(
-                    isinstance(alias, str)
-                    and _normalized_lookup(alias) == normalized_value
-                    for alias in aliases
-                ):
-                    matches.append(item)
-        elif kind == "topic":
-            for item in authoritative_items:
-                title = item["title"]
-                aliases = item["aliases"]
-                chapter_path = item["chapter_path"]
-                if (
-                    not isinstance(title, str)
-                    or not isinstance(aliases, list)
-                    or not isinstance(chapter_path, list)
-                ):
-                    raise _invalid_library()
-                searchable_values = [title, *aliases, *chapter_path]
-                if any(
-                    isinstance(candidate, str)
-                    and normalized_value in _normalized_lookup(candidate)
-                    for candidate in searchable_values
-                ):
-                    matches.append(item)
-        else:
-            raise AssertionError(f"未知查询类型：{kind}")
-        matches.sort(key=lambda item: str(item["id"]))
+        matches = _matching_items(self._items, kind=kind, value=value)
         selected = matches[:limit]
         if not selected:
             raise FacadeError("rule_not_found", "规则章节库中没有匹配项。")
@@ -371,41 +387,24 @@ class RulesLibrary:
         entity_kind: str,
         entity_value: str,
         general_rule_id: str,
+        conflict: dict[str, object],
     ) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
         if entity_kind not in {"id", "alias"}:
             raise FacadeError(
                 "invalid_rule_resolution",
                 "具体实体例外只能按稳定标识或名称解析。",
             )
-        normalized_value = _normalized_lookup(entity_value)
-        authoritative_items = [
-            item for item in self._items if item["extraction_status"] == "verified"
-        ]
-        if entity_kind == "id":
-            entity_matches = [
-                item
-                for item in authoritative_items
-                if item["id"] == entity_value
-                and item["category"] != "semantic_section"
-            ]
-        else:
-            entity_matches = []
-            for item in authoritative_items:
-                aliases = item["aliases"]
-                if not isinstance(aliases, list):
-                    raise _invalid_library()
-                if item["category"] != "semantic_section" and any(
-                    isinstance(alias, str)
-                    and _normalized_lookup(alias) == normalized_value
-                    for alias in aliases
-                ):
-                    entity_matches.append(item)
+        entity_matches = _matching_items(
+            self._items,
+            kind=entity_kind,
+            value=entity_value,
+            entities_only=True,
+        )
         if not entity_matches:
             raise FacadeError(
                 "rule_entity_not_found",
                 "规则章节库中没有匹配的完整规则实体。",
             )
-        entity_matches.sort(key=lambda item: str(item["id"]))
         if len(entity_matches) != 1:
             raise FacadeError(
                 "ambiguous_rule_entity",
@@ -417,9 +416,11 @@ class RulesLibrary:
                 },
             )
         entity_item = entity_matches[0]
-        general_matches = [
-            item for item in authoritative_items if item["id"] == general_rule_id
-        ]
+        general_matches = _matching_items(
+            self._items,
+            kind="id",
+            value=general_rule_id,
+        )
         if not general_matches:
             raise FacadeError(
                 "general_rule_not_found",
@@ -427,44 +428,18 @@ class RulesLibrary:
             )
         general_item = general_matches[0]
         if (
-            general_item["category"] != "semantic_section"
+            general_item["id"] == entity_item["id"]
             or general_item["rule_status"] != "default"
         ):
             raise FacadeError(
                 "invalid_general_rule",
                 "具体实体例外只能覆盖一般默认规则。",
             )
-        references = entity_item["cross_references"]
-        if not isinstance(references, list) or not all(
-            isinstance(reference, str) for reference in references
-        ):
-            raise _invalid_library()
-        if general_rule_id not in references:
-            raise FacadeError(
-                "rule_scope_mismatch",
-                "具体实体与指定一般规则之间没有可追溯关联。",
-            )
-        entity_id = str(entity_item["id"])
-        decision: dict[str, object] = {
-            "decision": "specific_entity_overrides_general_rule",
-            "reason": "三宝书具体实体说明优先于一般默认规则。",
-            "applied_rule_id": entity_id,
-            "overridden_rule_ids": [general_rule_id],
-            "precedence": [
-                {
-                    "rank": 3,
-                    "kind": "specific_entity",
-                    "rule_id": entity_id,
-                },
-                {
-                    "rank": 5,
-                    "kind": "general_default",
-                    "rule_id": general_rule_id,
-                },
-            ],
-        }
-        return (
-            self._load_asset(entity_item),
-            self._load_asset(general_item),
-            decision,
+        entity = self._load_asset(entity_item)
+        general_rule = self._load_asset(general_item)
+        decision = build_specific_exception_decision(
+            entity=entity,
+            general_rule=general_rule,
+            conflict=conflict,
         )
+        return entity, general_rule, decision

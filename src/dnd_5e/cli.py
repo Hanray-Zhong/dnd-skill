@@ -49,6 +49,10 @@ def _session_zero_configuration(value: str) -> dict[str, object]:
     return _json_object(value, label="Session Zero 配置")
 
 
+def _rule_conflict(value: str) -> dict[str, object]:
+    return _json_object(value, label="规则冲突")
+
+
 def _positive_integer(value: str) -> int:
     try:
         parsed = int(value)
@@ -213,6 +217,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--general-rule-id",
         help="与实体存在交叉引用、将由具体实体覆盖的一般默认规则稳定标识",
     )
+    rules_query.add_argument(
+        "--conflict",
+        type=_rule_conflict,
+        help="冲突范围、两侧不同取值及固定规则文本证据的 JSON object",
+    )
     rules_query.add_argument("--limit", type=_positive_integer, default=20)
     return parser
 
@@ -307,17 +316,28 @@ def main(arguments: Sequence[str] | None = None) -> int:
             general_rules: list[dict[str, object]] = []
             resolution: dict[str, object] | None = None
             if options.general_rule_id is None:
+                if options.conflict is not None:
+                    raise FacadeError(
+                        "invalid_rule_resolution",
+                        "规则冲突必须与一般规则稳定标识同时提供。",
+                    )
                 rules = library.query(
                     kind=query_kind,
                     value=query_value,
                     limit=options.limit,
                 )
             else:
+                if options.conflict is None:
+                    raise FacadeError(
+                        "rule_conflict_required",
+                        "交叉引用不能单独证明覆盖，必须提供有界冲突证据。",
+                    )
                 entity, general_rule, resolution = (
                     library.resolve_specific_exception(
                         entity_kind=query_kind,
                         entity_value=query_value,
                         general_rule_id=options.general_rule_id,
+                        conflict=options.conflict,
                     )
                 )
                 rules = [entity]

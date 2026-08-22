@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from typing import Any
 
 from tests.facade_support import run_facade, run_rules_builder
 from tests.test_rules_build import (
@@ -13,25 +14,35 @@ from tests.test_rules_build import (
 )
 
 
+def _build_synthetic_library(
+    root: Path,
+    fixture: dict[str, Any] | None = None,
+) -> Path:
+    baseline, reference_root = _write_synthetic_baseline(root)
+    if fixture is not None:
+        _rewrite_source_and_hash(baseline, reference_root, fixture)
+    library = root / "library"
+    build = run_rules_builder(
+        "build",
+        "--baseline",
+        str(baseline),
+        "--reference-root",
+        str(reference_root),
+        "--output",
+        str(library),
+    )
+    if build.returncode != 0:
+        raise AssertionError(build.stderr)
+    return library
+
+
 class RulesQueryFacadeTests(unittest.TestCase):
     def test_alias_query_loads_only_the_matching_generated_asset(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            baseline, reference_root = _write_synthetic_baseline(root)
             fixture = _synthetic_fixture()
             fixture["pages"][0]["blocks"][2]["references"] = []
-            _rewrite_source_and_hash(baseline, reference_root, fixture)
-            library = root / "library"
-            build = run_rules_builder(
-                "build",
-                "--baseline",
-                str(baseline),
-                "--reference-root",
-                str(reference_root),
-                "--output",
-                str(library),
-            )
-            self.assertEqual(0, build.returncode, msg=build.stderr)
+            library = _build_synthetic_library(root, fixture)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             unrelated = next(
                 item for item in index["items"] if item["category"] == "condition"
@@ -128,18 +139,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
     def test_stable_id_and_topic_queries_have_bounded_results(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            baseline, reference_root = _write_synthetic_baseline(root)
-            library = root / "library"
-            build = run_rules_builder(
-                "build",
-                "--baseline",
-                str(baseline),
-                "--reference-root",
-                str(reference_root),
-                "--output",
-                str(library),
-            )
-            self.assertEqual(0, build.returncode, msg=build.stderr)
+            library = _build_synthetic_library(root)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             spell_id = next(
                 item["id"] for item in index["items"] if item["category"] == "spell"
@@ -184,10 +184,36 @@ class RulesQueryFacadeTests(unittest.TestCase):
             self.assertEqual(2, missing.returncode)
             self.assertEqual("rule_not_found", missing_payload["error"]["code"])
 
+    def test_general_default_rule_is_returned_without_an_exception(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            library = _build_synthetic_library(root)
+            index = json.loads((library / "index.json").read_text(encoding="utf-8"))
+            general_rule_id = next(
+                item["id"]
+                for item in index["items"]
+                if item["category"] == "semantic_section"
+            )
+
+            result = run_facade(
+                "rules-query",
+                "--library",
+                str(library),
+                "--id",
+                general_rule_id,
+            )
+            payload = json.loads(result.stdout) if result.stdout else None
+
+            self.assertEqual(0, result.returncode, msg=result.stderr)
+            assert isinstance(payload, dict)
+            self.assertEqual([general_rule_id], [rule["id"] for rule in payload["rules"]])
+            self.assertEqual("default", payload["rules"][0]["rule_status"])
+            self.assertNotIn("general_rules", payload)
+            self.assertNotIn("resolution", payload)
+
     def test_representative_entities_are_queryable_by_name_and_stable_id(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            baseline, reference_root = _write_synthetic_baseline(root)
             fixture = _synthetic_fixture()
             fixture["pages"][1]["blocks"].extend(
                 [
@@ -209,18 +235,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
                     {"kind": "paragraph", "text": "星辉棱镜是一件自有测试物品。"},
                 ]
             )
-            _rewrite_source_and_hash(baseline, reference_root, fixture)
-            library = root / "library"
-            build = run_rules_builder(
-                "build",
-                "--baseline",
-                str(baseline),
-                "--reference-root",
-                str(reference_root),
-                "--output",
-                str(library),
-            )
-            self.assertEqual(0, build.returncode, msg=build.stderr)
+            library = _build_synthetic_library(root, fixture)
 
             for alias, category in (
                 ("星光术", "spell"),
@@ -257,21 +272,15 @@ class RulesQueryFacadeTests(unittest.TestCase):
     def test_specific_entity_exception_overrides_its_general_rule(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            baseline, reference_root = _write_synthetic_baseline(root)
             fixture = _synthetic_fixture()
-            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
-            _rewrite_source_and_hash(baseline, reference_root, fixture)
-            library = root / "library"
-            build = run_rules_builder(
-                "build",
-                "--baseline",
-                str(baseline),
-                "--reference-root",
-                str(reference_root),
-                "--output",
-                str(library),
+            fixture["pages"][0]["blocks"][1]["text"] = (
+                "一般规则：有遮蔽的目标会受到星光术影响。"
             )
-            self.assertEqual(0, build.returncode, msg=build.stderr)
+            fixture["pages"][1]["blocks"][0]["text"] = (
+                "跨页部分保留例外：有遮蔽的目标不受影响。"
+            )
+            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
+            library = _build_synthetic_library(root, fixture)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             general_rule = next(
                 item
@@ -282,6 +291,13 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 item for item in index["items"] if item["category"] == "spell"
             )
             self.assertIn(general_rule["id"], entity["cross_references"])
+            conflict = {
+                "scope": "星光术对有遮蔽目标的影响",
+                "general_value": "受到星光术影响",
+                "specific_value": "不受影响",
+                "general_evidence": "一般规则：有遮蔽的目标会受到星光术影响。",
+                "specific_evidence": "跨页部分保留例外：有遮蔽的目标不受影响。",
+            }
 
             result = run_facade(
                 "rules-query",
@@ -291,6 +307,8 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 "星光术",
                 "--general-rule-id",
                 general_rule["id"],
+                "--conflict",
+                json.dumps(conflict, ensure_ascii=False),
             )
             payload = json.loads(result.stdout) if result.stdout else None
             rules = payload.get("rules", []) if isinstance(payload, dict) else []
@@ -311,6 +329,7 @@ class RulesQueryFacadeTests(unittest.TestCase):
                     "reason": "三宝书具体实体说明优先于一般默认规则。",
                     "applied_rule_id": entity["id"],
                     "overridden_rule_ids": [general_rule["id"]],
+                    "conflict": conflict,
                     "precedence": [
                         {
                             "rank": 3,
@@ -327,21 +346,12 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 payload["resolution"],
             )
 
-    def test_specific_entity_resolution_rejects_a_missing_rule_reference(self) -> None:
+    def test_cross_reference_alone_does_not_authorize_an_override(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            baseline, reference_root = _write_synthetic_baseline(root)
-            library = root / "library"
-            build = run_rules_builder(
-                "build",
-                "--baseline",
-                str(baseline),
-                "--reference-root",
-                str(reference_root),
-                "--output",
-                str(library),
-            )
-            self.assertEqual(0, build.returncode, msg=build.stderr)
+            fixture = _synthetic_fixture()
+            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
+            library = _build_synthetic_library(root, fixture)
             index = json.loads((library / "index.json").read_text(encoding="utf-8"))
             general_rule_id = next(
                 item["id"]
@@ -357,6 +367,80 @@ class RulesQueryFacadeTests(unittest.TestCase):
                 "星光术",
                 "--general-rule-id",
                 general_rule_id,
+            )
+            error = json.loads(result.stderr) if result.stderr else None
+
+            self.assertEqual(2, result.returncode)
+            assert isinstance(error, dict)
+            self.assertEqual("rule_conflict_required", error["error"]["code"])
+
+    def test_specific_entity_resolution_rejects_unanchored_conflict_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            fixture = _synthetic_fixture()
+            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
+            library = _build_synthetic_library(root, fixture)
+            index = json.loads((library / "index.json").read_text(encoding="utf-8"))
+            general_rule_id = next(
+                item["id"]
+                for item in index["items"]
+                if item["category"] == "semantic_section"
+            )
+            conflict = {
+                "scope": "无法定位的测试冲突",
+                "general_value": "适用范围",
+                "specific_value": "从不适用",
+                "general_evidence": "本章内容由测试作者原创，并明确说明适用范围。",
+                "specific_evidence": "不存在的规则证据：从不适用。",
+            }
+
+            result = run_facade(
+                "rules-query",
+                "--library",
+                str(library),
+                "--alias",
+                "星光术",
+                "--general-rule-id",
+                general_rule_id,
+                "--conflict",
+                json.dumps(conflict, ensure_ascii=False),
+            )
+            error = json.loads(result.stderr) if result.stderr else None
+
+            self.assertEqual(2, result.returncode)
+            assert isinstance(error, dict)
+            self.assertEqual("rule_conflict_unverified", error["error"]["code"])
+
+    def test_specific_entity_resolution_rejects_a_missing_rule_reference(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            library = _build_synthetic_library(root)
+            index = json.loads((library / "index.json").read_text(encoding="utf-8"))
+            general_rule_id = next(
+                item["id"]
+                for item in index["items"]
+                if item["category"] == "semantic_section"
+            )
+            conflict = {
+                "scope": "星光术与未关联的一般规则",
+                "general_value": "适用范围",
+                "specific_value": "不受影响",
+                "general_evidence": "本章内容由测试作者原创，并明确说明适用范围。",
+                "specific_evidence": "跨页部分保留例外：有遮蔽的目标不受影响。",
+            }
+
+            result = run_facade(
+                "rules-query",
+                "--library",
+                str(library),
+                "--alias",
+                "星光术",
+                "--general-rule-id",
+                general_rule_id,
+                "--conflict",
+                json.dumps(conflict, ensure_ascii=False),
             )
             error = json.loads(result.stderr) if result.stderr else None
 
