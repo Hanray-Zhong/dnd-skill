@@ -9,12 +9,12 @@ from typing import Any
 
 from dnd_5e.catalog import public_skill_catalog
 from dnd_5e.errors import FacadeError
+from dnd_5e.state.types import CampaignConfigUpdate, CampaignSummary
 from dnd_5e.workspace import (
     configure_campaign_difficulty,
     create_campaign,
     open_campaign,
 )
-from dnd_5e.state_store import CampaignConfigUpdate, CampaignSummary
 
 
 def _reject_nonstandard_json_constant(value: str) -> None:
@@ -83,9 +83,12 @@ def _config_update_success_payload(
 ) -> dict[str, object]:
     payload = _campaign_success_payload("configure", workspace, update.summary)
     payload["transaction"] = {
+        "audience_id": update.request.audience_id,
         "event_id": update.event_id,
-        "idempotency_key": update.idempotency_key,
+        "expected_changes": {"difficulty": update.request.difficulty},
+        "idempotency_key": update.request.idempotency_key,
         "replayed": update.replayed,
+        "source": update.request.source,
     }
     return payload
 

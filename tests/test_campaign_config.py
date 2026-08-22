@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-import subprocess
-import sys
 import tempfile
 import unittest
 import uuid
 
-from tests.facade_support import REPOSITORY_ROOT, run_facade
+from tests.facade_support import run_configure_fault, run_facade
 
 
 class CampaignConfigFacadeTests(unittest.TestCase):
@@ -66,8 +63,11 @@ class CampaignConfigFacadeTests(unittest.TestCase):
                     "configure_revision": 2,
                     "configure_config": expected_config,
                     "transaction": {
+                        "audience_id": "dm",
+                        "expected_changes": {"difficulty": "challenging"},
                         "idempotency_key": "difficulty-session-zero-v1",
                         "replayed": False,
+                        "source": "dnd-5e-campaign-start",
                     },
                     "event_id_is_uuid": True,
                     "open_returncode": 0,
@@ -103,10 +103,17 @@ class CampaignConfigFacadeTests(unittest.TestCase):
                     ),
                     "transaction": (
                         {
+                            "audience_id": configured["transaction"].get(
+                                "audience_id"
+                            ),
+                            "expected_changes": configured["transaction"].get(
+                                "expected_changes"
+                            ),
                             "idempotency_key": configured["transaction"].get(
                                 "idempotency_key"
                             ),
                             "replayed": configured["transaction"].get("replayed"),
+                            "source": configured["transaction"].get("source"),
                         }
                         if isinstance(configured, dict)
                         and isinstance(configured.get("transaction"), dict)
@@ -316,43 +323,11 @@ class CampaignConfigFacadeTests(unittest.TestCase):
                 json.dumps({"difficulty": "standard"}),
             )
             self.assertEqual(0, create_result.returncode, msg=create_result.stderr)
-            crash_script = """
-import os
-from pathlib import Path
-import sys
-
-from dnd_5e.workspace import configure_campaign_difficulty
-
-
-def interrupt_transaction(point: str) -> None:
-    if point == "before_commit":
-        os._exit(86)
-
-
-configure_campaign_difficulty(
-    Path(sys.argv[1]),
-    expected_revision=1,
-    idempotency_key="crash-recovery-request",
-    difficulty="challenging",
-    failure_injector=interrupt_transaction,
-)
-"""
-            environment = os.environ.copy()
-            source_path = str(REPOSITORY_ROOT / "src")
-            existing_python_path = environment.get("PYTHONPATH")
-            environment["PYTHONPATH"] = (
-                f"{source_path}{os.pathsep}{existing_python_path}"
-                if existing_python_path
-                else source_path
-            )
-
-            crashed = subprocess.run(
-                [sys.executable, "-c", crash_script, str(workspace)],
-                cwd=REPOSITORY_ROOT,
-                env=environment,
-                capture_output=True,
-                text=True,
-                check=False,
+            crashed = run_configure_fault(
+                workspace,
+                failure_point="before_commit",
+                failure_mode="crash",
+                idempotency_key="crash-recovery-request",
             )
             recovered_result = run_facade("open", str(workspace))
             recovered = (

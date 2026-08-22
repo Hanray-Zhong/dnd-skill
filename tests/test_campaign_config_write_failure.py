@@ -8,8 +8,10 @@ import unittest
 from tests.facade_support import run_configure_fault, run_facade
 
 
-class CampaignConfigRecoveryFacadeTests(unittest.TestCase):
-    def test_configure_recovers_after_state_after_a_postcommit_crash(self) -> None:
+class CampaignConfigWriteFailureFacadeTests(unittest.TestCase):
+    def test_configure_rolls_back_when_event_staging_reports_a_write_failure(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory) / "campaign"
             create_result = run_facade(
@@ -19,12 +21,14 @@ class CampaignConfigRecoveryFacadeTests(unittest.TestCase):
                 json.dumps({"difficulty": "standard"}),
             )
             self.assertEqual(0, create_result.returncode, msg=create_result.stderr)
-            crashed = run_configure_fault(
+
+            failed = run_configure_fault(
                 workspace,
-                failure_point="after_commit",
-                failure_mode="crash",
-                idempotency_key="postcommit-crash-request",
+                failure_point="after_event",
+                failure_mode="write_error",
+                idempotency_key="write-failure-request",
             )
+            error_payload = json.loads(failed.stderr) if failed.stderr else None
             recovered_result = run_facade("open", str(workspace))
             recovered = (
                 json.loads(recovered_result.stdout)
@@ -37,7 +41,7 @@ class CampaignConfigRecoveryFacadeTests(unittest.TestCase):
                 "--expected-revision",
                 "1",
                 "--idempotency-key",
-                "postcommit-crash-request",
+                "write-failure-request",
                 "--difficulty",
                 "challenging",
             )
@@ -45,20 +49,23 @@ class CampaignConfigRecoveryFacadeTests(unittest.TestCase):
 
             self.assertEqual(
                 {
-                    "crash_returncode": 86,
-                    "crash_stdout": "",
-                    "crash_stderr": "",
+                    "failure_returncode": 2,
+                    "failure_error": {
+                        "code": "state_commit_failed",
+                        "message": "状态事务写入失败，未提交任何部分状态。",
+                    },
+                    "failure_stdout": "",
                     "recovered_returncode": 0,
-                    "recovered_revision": 2,
-                    "recovered_difficulty": "challenging",
+                    "recovered_revision": 1,
+                    "recovered_difficulty": "standard",
                     "retry_returncode": 0,
                     "retry_revision": 2,
-                    "retry_replayed": True,
+                    "retry_replayed": False,
                 },
                 {
-                    "crash_returncode": crashed.returncode,
-                    "crash_stdout": crashed.stdout,
-                    "crash_stderr": crashed.stderr,
+                    "failure_returncode": failed.returncode,
+                    "failure_error": error_payload,
+                    "failure_stdout": failed.stdout,
                     "recovered_returncode": recovered_result.returncode,
                     "recovered_revision": (
                         recovered.get("revision")
@@ -84,7 +91,7 @@ class CampaignConfigRecoveryFacadeTests(unittest.TestCase):
                         else None
                     ),
                 },
-                msg=crashed.stderr or recovered_result.stderr or retry_result.stderr,
+                msg=failed.stderr or recovered_result.stderr or retry_result.stderr,
             )
 
 

@@ -1,10 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
 import json
 from pathlib import Path
 import sqlite3
+
+from dnd_5e.state.types import (
+    CampaignConfigRequest,
+    CampaignConfigUpdate,
+    CampaignSummary,
+    FailureInjector,
+    IdempotencyConflict,
+    RevisionConflict,
+)
 
 
 STATE_SCHEMA_NUMBER = 2
@@ -89,33 +96,6 @@ STATE_SCHEMA_DEFINITIONS = {
     for key, statement in _STATE_SCHEMA_SQL.items()
 }
 STATE_SCHEMA_OBJECTS = frozenset(STATE_SCHEMA_DEFINITIONS)
-
-
-@dataclass(frozen=True)
-class CampaignSummary:
-    campaign_id: str
-    created_at: str
-    revision: int
-    campaign_status: str
-    initial_config: dict[str, object]
-
-
-@dataclass(frozen=True)
-class CampaignConfigUpdate:
-    summary: CampaignSummary
-    event_id: str
-    idempotency_key: str
-    replayed: bool
-
-
-class RevisionConflict(Exception):
-    def __init__(self, current: CampaignSummary) -> None:
-        super().__init__("状态变更请求基于过期修订。")
-        self.current = current
-
-
-class IdempotencyConflict(Exception):
-    pass
 
 
 def _canonical_json(value: object) -> str:
@@ -205,18 +185,18 @@ def initialize_state_store(
 def update_campaign_difficulty(
     database_path: Path,
     *,
-    expected_revision: int,
-    idempotency_key: str,
-    difficulty: str,
+    request: CampaignConfigRequest,
     event_id: str,
     committed_at: str,
-    failure_injector: Callable[[str], None] | None = None,
+    failure_injector: FailureInjector | None = None,
 ) -> CampaignConfigUpdate:
     request_json = _canonical_json(
         {
-            "difficulty": difficulty,
-            "expected_revision": expected_revision,
+            "audience_id": request.audience_id,
+            "expected_changes": {"difficulty": request.difficulty},
+            "expected_revision": request.expected_revision,
             "operation": "configure_difficulty",
+            "source": request.source,
         }
     )
     with sqlite3.connect(database_path) as connection:
@@ -229,7 +209,7 @@ def update_campaign_difficulty(
                 FROM state_requests
                 WHERE idempotency_key = ?
                 """,
-                (idempotency_key,),
+                (request.idempotency_key,),
             ).fetchone()
             if existing_request is not None:
                 stored_request, stored_event_id, stored_result = existing_request
@@ -260,7 +240,7 @@ def update_campaign_difficulty(
                         initial_config=stored_config,
                     ),
                     event_id=str(stored_event_id),
-                    idempotency_key=idempotency_key,
+                    request=request,
                     replayed=True,
                 )
                 connection.rollback()
@@ -306,10 +286,10 @@ def update_campaign_difficulty(
                 campaign_status=campaign_status,
                 initial_config=initial_config,
             )
-            if current.revision != expected_revision:
+            if current.revision != request.expected_revision:
                 raise RevisionConflict(current)
 
-            updated_config = {**initial_config, "difficulty": difficulty}
+            updated_config = {**initial_config, "difficulty": request.difficulty}
             new_revision = current.revision + 1
             updated_payload = _canonical_json(
                 {
@@ -322,11 +302,11 @@ def update_campaign_difficulty(
                     "campaign_id": current.campaign_id,
                     "changes": {
                         "difficulty": {
-                            "after": difficulty,
+                            "after": request.difficulty,
                             "before": initial_config.get("difficulty"),
                         }
                     },
-                    "expected_revision": expected_revision,
+                    "expected_revision": request.expected_revision,
                 }
             )
             result = CampaignSummary(
@@ -378,15 +358,17 @@ def update_campaign_difficulty(
                     new_revision,
                     1,
                     "campaign_config_updated",
-                    "dnd-5e-campaign-state",
-                    "dm",
+                    request.source,
+                    request.audience_id,
                     event_payload,
                 ),
             )
+            if failure_injector is not None:
+                failure_injector("after_event")
             connection.execute(
                 "INSERT INTO state_requests VALUES (?, ?, ?, ?, ?, ?)",
                 (
-                    idempotency_key,
+                    request.idempotency_key,
                     request_json,
                     current.revision,
                     new_revision,
@@ -406,7 +388,7 @@ def update_campaign_difficulty(
     return CampaignConfigUpdate(
         summary=result,
         event_id=event_id,
-        idempotency_key=idempotency_key,
+        request=request,
         replayed=False,
     )
 
