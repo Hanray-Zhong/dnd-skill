@@ -6,6 +6,16 @@
 
 ## Agent skills
 
+### PDF 阅读
+
+`pdf:pdf` 技能在本仓库的所有场景中均可用于读取 PDF 文件。只要当前任务涉及读取、审阅、
+检查或从 PDF 提取信息，即使用户未在当前任务中点名该技能，也允许读取其 `SKILL.md` 并按只读
+工作流执行。
+
+此常驻授权仅涵盖读取 PDF 以及阅读所需的临时渲染和文本提取，不授权创建、编辑、填写、转换、
+覆盖或重新导出 PDF。涉及这些写操作时，仍须用户在当前任务中明确指定 `pdf:pdf`，并遵循该技能
+的完整工作流。
+
 ### Issue tracker
 
 本仓库的 Issue 和 PRD 使用 GitHub Issues 管理，并通过 `gh` CLI 操作。参见 `docs/agents/issue-tracker.md`。
