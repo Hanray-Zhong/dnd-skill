@@ -57,6 +57,13 @@ def _installed_manifest_paths() -> dict[str, Path]:
             suffix = (*_INSTALLED_SKILLS_PATH, skill_id, "SKILL.md")
             if len(parts) >= len(suffix) and parts[-len(suffix) :] == suffix:
                 manifest_paths[skill_id] = Path(str(distribution.locate_file(entry)))
+    if not manifest_paths:
+        packaged_skills = Path(__file__).resolve().parent / "skill_manifests"
+        manifest_paths = {
+            path.parent.name: path
+            for path in packaged_skills.glob("*/SKILL.md")
+            if path.is_file()
+        }
     return manifest_paths
 
 

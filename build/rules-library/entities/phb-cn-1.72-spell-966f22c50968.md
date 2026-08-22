@@ -1,0 +1,33 @@
+---
+{"activation_condition":"三宝书规则基线适用且没有更具体规则覆盖。","aliases":["魅影之力 Phantasmal Force","魅影之力","Phantasmal Force"],"category":"spell","chapter_path":["第3部分魔法规则 The Rules of Magic","第11章：法术Spells","法术详述Spell Descriptions","魅影之力Phantasmal Force 2环幻术"],"content_sha256":"558f2f3fca74511fcb03d26edb02e083cfc196ce292e4280768e6626d5e5e25b","cross_references":["dmg-cn-1.1-semantic-section-0e16b903d3c6","dmg-cn-1.1-semantic-section-bc7e083f6ebe","phb-cn-1.72-semantic-section-3db7780a0712","phb-cn-1.72-semantic-section-829253121138","phb-cn-1.72-semantic-section-900a7ba9a015","phb-cn-1.72-semantic-section-a0fe69ef9851","phb-cn-1.72-semantic-section-b04c68adc735","phb-cn-1.72-semantic-section-c5de233a37cc","phb-cn-1.72-semantic-section-eaedfb7e2b3b"],"extraction_status":"verified","id":"phb-cn-1.72-spell-966f22c50968","pages":[{"label":"264","pdf_page":264}],"rule_status":"default","source":{"id":"phb-cn-1.72","sha256":"0f6ce6167a9812d43a4942a4754ce6ae6b53e5f6b98f1e59c6491f3ca46d87b3","title":"《玩家手册》中译 v1.72","version":"1.72"},"title":"魅影之力 Phantasmal Force"}
+---
+
+# 魅影之力 Phantasmal Force
+
+2 环幻术  
+施法时间： 1 动作  
+施法距离： 60 尺  
+法术成分： V、 S、 M （一点羊毛）  
+持续时间：专注，至多 1 分钟  
+你指定施法距离内一个你能够看见的生物，并创造一个根  
+植于其意识的幻象。该目标必须进行一次智力豁免。豁免失败  
+时，你创造出一个不大于 10 尺立方且只能被目标感知到的幻  
+影物件，生物或其他你指定的可见现象。该创造将持续存在直  
+至法术终止。且该法术对不死生物和构装生物无效。  
+该幻象包括声音、温度和其他反应因素，同样只对目标显  
+现。  
+目标可以用其动作进行一次对抗该法术豁免 DC 的智力（调  
+查）检定来检查这个幻象。检定成功则目标意识到该幻象是一  
+个幻术，法术随即终止。  
+目标受法术影响时会认定幻象是真实的，并且会合理化任  
+何与幻象产生的不合逻辑的互动结果。例如，某个受术生物试  
+图走过一座跨越峡谷的幻影桥时踏出第一步就从桥上坠落。如  
+果目标在坠落中幸存，它会仍然相信该桥是真实存在的，并且  
+会提出自己坠落的一些其他解释——比如被推了一把，自己滑  
+倒了，或者可能有一阵强风把他吹了下来。  
+受法术影响的目标对幻象的真实性深信不疑，甚至还会受  
+到幻象的直接伤害。一个生物模样的幻象可以攻击目标。比如，  
+显现为火焰，酸池或岩浆的幻象能够烧伤目标。在你的每一回  
+合，如果目标在幻象的伤害区域内或在其显现的生物周边 5 尺  
+攻击范围内，则幻象可以对目标造成 1d6 点心灵伤害。而此时  
+目标则会感觉该伤害与幻象所显现的类型相符。

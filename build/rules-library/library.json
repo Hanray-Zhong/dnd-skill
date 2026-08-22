@@ -1,0 +1,37 @@
+{
+  "asset_count": 4481,
+  "blocked_sha256": "8e07ce584f3c344441471a61ccdf0c042273d1b39c185fc47c79459ef15d110a",
+  "build_tool_version": "rules-library-builder-v2",
+  "category_counts": {
+    "armor": 13,
+    "condition": 15,
+    "equipment": 126,
+    "magic_item": 282,
+    "monster": 343,
+    "mount": 8,
+    "reward": 36,
+    "semantic_section": 3168,
+    "service": 34,
+    "spell": 362,
+    "tool": 38,
+    "trade_good": 13,
+    "vehicle": 6,
+    "weapon": 37
+  },
+  "coverage_sha256": "2870d8cc3f1c1eddfb6458f325077f89c5b31892e9a04fedd56353a34b908341",
+  "distribution": {
+    "content_quality": "passed",
+    "local_preview": "available",
+    "public_release": "available"
+  },
+  "format": "dnd-rules-library-v1",
+  "index_sha256": "6e9c00fab37e8445a676619cce938275d0a36e026099aba795a18922cde2797a",
+  "library_sha256": "dd4b22897ee278176f84017ae5dc6af815ec8fba71814f13d4fcd28581110828",
+  "library_version": "core-cn-2014-v1-public",
+  "normalizer_version": "semantic-markdown-v2",
+  "parser_versions": {
+    "pdfplumber": "0.11.10",
+    "pypdf": "6.16.1"
+  },
+  "sources_sha256": "e11cd1e3b51126b3b55ed788b0b99528f64ed03ff22052a2aac58872ac68c691"
+}

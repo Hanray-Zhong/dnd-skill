@@ -15,11 +15,12 @@
 - [reference/](reference/) 保存开发期参考资料。它们不属于发布 Skill，也不能成为运行时依赖；具体范围见 [reference/README.md](reference/README.md)。
 - [prototypes/](prototypes/) 保存用于验证设计决策的抛弃式原型及实验结果；它们不是正式实现。
 - [agents/](agents/) 保存 Issue tracker、triage 标签和领域文档的协作约定。
+- [rules-library.md](rules-library.md) 说明三宝书规则章节库的开发构建、运行时查询、预览 wheel 和发布状态门禁。
 
 ## 当前实现状态
 
-Issue #2、#3 与 #8 的纵向切片已经建立十一项 Skill 目录、`dnd-5e` 统一进程门面、固定战役工作区、SQLite 权威状态库边界及 Session Zero 完成事务。当前可安全创建、配置和重新打开战役，并在玩家与安全确认齐全、角色控制关系无冲突时原子写入开团状态、初始受众和审计事件。运行方式见仓库根目录的 [README.md](../README.md)。
+Issue #2、#3 与 #8 的纵向切片已经建立十一项 Skill 目录、`dnd-5e` 统一进程门面、固定战役工作区、SQLite 权威状态库边界及 Session Zero 完成事务。当前可安全创建、配置和重新打开战役，并在玩家与安全确认齐全、角色控制关系无冲突时原子写入开团状态、初始受众和审计事件。Issue #4 增加了完整三宝书开发构建、固定 Markdown 资产查询、本地预览打包和授权状态门禁。运行方式见仓库根目录的 [README.md](../README.md)。
 
 其余能力仍须从 Issue #1 的验收范围继续实现，并以当前规格、领域术语、ADR 和覆盖矩阵作为完整设计输入；当前切片不代表完整跑团功能已经交付。
 
-[GitHub Issue #4](https://github.com/Hanray-Zhong/dnd-skill/issues/4) 的交付范围是完整构建并查询三宝书 Markdown 规则章节库，不是只处理一份规则样本。具体输入、生成资产、运行时隔离、失败门禁及与 Issue #5、#6、#33 的边界见[来源到行为覆盖矩阵](dnd-5e-source-to-behavior-coverage-matrix.md#issue-4-交付边界)和[开发参考资料边界](reference/README.md#转换与运行时交付)。
+[GitHub Issue #4](https://github.com/Hanray-Zhong/dnd-skill/issues/4) 的交付范围是完整构建并查询三宝书 Markdown 规则章节库，不是只处理一份规则样本。具体输入、生成资产、运行时隔离、失败门禁及与 Issue #5、#6、#33 的边界见[来源到行为覆盖矩阵](dnd-5e-source-to-behavior-coverage-matrix.md#issue-4-交付边界)、[开发参考资料边界](reference/README.md#转换与运行时交付)和[规则章节库构建与查询](rules-library.md)。

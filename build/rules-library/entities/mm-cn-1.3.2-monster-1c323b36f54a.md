@@ -1,0 +1,24 @@
+---
+{"activation_condition":"三宝书规则基线适用且没有更具体规则覆盖。","aliases":["缚灵 Wraith","缚灵","Wraith"],"category":"monster","chapter_path":["简介","缚灵 Wraith"],"content_sha256":"1c0401da9d7f803db289d6c61df2e4fa8b97e1bd4ca4daed864e93263d0a73ce","cross_references":["dmg-cn-1.1-semantic-section-bc7e083f6ebe","mm-cn-1.3.2-semantic-section-75abe4cd6d5f","phb-cn-1.72-condition-8e07fef09a17","phb-cn-1.72-condition-911d08c609ba","phb-cn-1.72-condition-924a77f52dc5","phb-cn-1.72-condition-cd1393e80805","phb-cn-1.72-condition-d0b19d83ea08","phb-cn-1.72-condition-d6a1bb34e2a5","phb-cn-1.72-equipment-4a726b58bdb4","phb-cn-1.72-semantic-section-1a5ee323195b","phb-cn-1.72-semantic-section-5f2adb56428a","phb-cn-1.72-semantic-section-e1a2d95411e8","phb-cn-1.72-semantic-section-eed39dae3955","phb-cn-1.72-spell-ae38c5a6851d"],"extraction_status":"verified","id":"mm-cn-1.3.2-monster-1c323b36f54a","pages":[{"label":"289","pdf_page":289}],"rule_status":"default","source":{"id":"mm-cn-1.3.2","sha256":"368585a9bf5f1d961a805ebae023436ee5b1a269b2679f78211b87451eff3617","title":"《怪物图鉴》中译 v1.3.2 配图版","version":"1.3.2"},"title":"缚灵 Wraith"}
+---
+
+# 缚灵 Wraith
+
+> 中型不死生物，中立邪恶
+> AC： 13
+> HP： 67 （9d8+27）
+> 速度： 0 尺，飞行 60 尺（悬浮）
+> 力量 6 （-2） 敏捷 16 （+3） 体质 16 （+3）
+> 智力 12 （+1） 感知 14 （+2） 魅力 15 （+2）
+> 伤害抗性：强酸，冷冻，火焰，闪电，雷鸣，非魔法攻击、
+> 非银质武器的钝击、穿刺、挥砍
+> 伤害免疫：黯蚀，毒素
+> 状态免疫：魅惑，力竭，擒抱，麻痹，石化，中毒，倒地，束缚
+> 感官：黑暗视觉 60 尺，被动察觉 12
+> 语言：生前掌握的语言
+> 挑战等级： 5 （1800 XP）
+> 虚体移动 Incorporeal Movement。 缚灵可以如同穿过困难地形
+> 一样穿过其他生物和物件。如果它在自己的回合结束时仍处在物
+> 件内部则受到 5 （1d10）的力场伤害。
+> 日照敏感 Sunlight Sensitivity。 处于阳光下时，缚灵进行攻击检
+> 定，以及进行依赖视觉的感知（察觉）检定时具有劣势。

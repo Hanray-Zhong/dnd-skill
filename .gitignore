@@ -4,7 +4,9 @@ __pycache__/
 .venv/
 .mypy_cache/
 .ruff_cache/
-build/
+build/*
+!build/rules-library/
+!build/rules-library/**
 dist/
 *.egg-info/
 .DS_Store
