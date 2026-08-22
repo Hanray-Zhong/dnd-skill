@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -13,13 +14,17 @@ from dnd_5e import __version__
 from dnd_5e.catalog import skill_suite_sha256
 from dnd_5e.errors import FacadeError
 from dnd_5e.state_store import (
+    CampaignConfigUpdate,
     CampaignSummary,
+    IdempotencyConflict,
+    RevisionConflict,
     STATE_APPLICATION_ID,
     STATE_SCHEMA_OBJECTS,
     STATE_SCHEMA_STATEMENTS,
     STATE_SCHEMA_VERSION,
     initialize_state_store,
     read_state_store,
+    update_campaign_difficulty,
 )
 
 
@@ -384,6 +389,65 @@ def create_campaign(
             "initialization_failed",
             "战役初始化失败，未留下有效战役。",
         ) from error
+
+
+def configure_campaign_difficulty(
+    workspace: Path,
+    *,
+    expected_revision: int,
+    idempotency_key: str,
+    difficulty: str,
+    failure_injector: Callable[[str], None] | None = None,
+) -> CampaignConfigUpdate:
+    if expected_revision < 1 or not idempotency_key.strip() or not difficulty.strip():
+        raise FacadeError(
+            "invalid_state_request",
+            "状态变更请求必须包含有效修订号、幂等键和难度策略。",
+        )
+    requested_workspace = workspace.expanduser()
+    if requested_workspace.is_symlink():
+        raise FacadeError("unsafe_workspace", "战役工作区路径不安全。")
+    try:
+        resolved_workspace = requested_workspace.resolve(strict=True)
+    except OSError as error:
+        raise _invalid_manifest() from error
+    if not resolved_workspace.is_dir():
+        raise _invalid_manifest()
+    manifest, database_path = _load_manifest(resolved_workspace)
+    _validate_persistent_directories(resolved_workspace)
+    try:
+        current = read_state_store(database_path)
+        if (
+            current.campaign_id != manifest.get("campaign_id")
+            or current.created_at != manifest.get("created_at")
+        ):
+            raise sqlite3.DatabaseError("状态库与根清单的战役身份不一致")
+        return update_campaign_difficulty(
+            database_path,
+            expected_revision=expected_revision,
+            idempotency_key=idempotency_key,
+            difficulty=difficulty,
+            event_id=str(uuid.uuid4()),
+            committed_at=_created_at(),
+            failure_injector=failure_injector,
+        )
+    except RevisionConflict as error:
+        raise FacadeError(
+            "revision_conflict",
+            "状态变更请求基于过期修订，必须先重新打开战役并重新对账。",
+            {
+                "expected_revision": expected_revision,
+                "current_revision": error.current.revision,
+                "current_config": error.current.initial_config,
+            },
+        ) from error
+    except IdempotencyConflict as error:
+        raise FacadeError(
+            "idempotency_conflict",
+            "该幂等键已用于不同的状态变更请求。",
+        ) from error
+    except (OSError, sqlite3.Error, TypeError, ValueError) as error:
+        raise _invalid_state_store() from error
 
 
 def open_campaign(workspace: Path) -> CampaignSummary:
