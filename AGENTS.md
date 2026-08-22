@@ -16,6 +16,26 @@
 覆盖或重新导出 PDF。涉及这些写操作时，仍须用户在当前任务中明确指定 `pdf:pdf`，并遵循该技能
 的完整工作流。
 
+### Word 与 DOCX 文档
+
+`documents:documents` 技能在本仓库中获得常驻授权。只要当前任务涉及读取、创建、编辑、修订、
+评论、检查或验证 `.docx`、Word 或面向 Google Docs 的文档产物，即使用户未在当前任务中点名
+该技能，也允许读取其 `SKILL.md`、任务所需的引用资料和脚本，并按其完整工作流执行。
+
+该授权仅用于完成用户当前提出的文档任务，不扩大任务范围。创建或编辑文档时必须遵循技能规定的
+依赖加载、操作标记、模板选择及渲染检查要求；只有用户要求交付原生 Google Docs 时，才允许执行
+相应的外部导入操作。
+
+### Analytics Dashboard 模板
+
+`openai-templates:artifact-template-analytics-dashboard` 技能在本仓库中获得常驻授权。当前任务选择、
+点名或明确要求使用 Analytics Dashboard 模板时，即使用户未另行点名该技能，也允许读取其
+`SKILL.md`、`artifact-template.json` 和保留的参考文件，并按模板工作流创建电子表格。
+
+允许在该模板工作流内调用其要求的、提示中已公布的预装电子表格能力；此依赖授权仅限完成
+Analytics Dashboard 模板任务，不构成其他电子表格任务的通用 skill 授权。必须保持参考文件不变，
+通过克隆或导入保留其结构与视觉系统，并在交付前完成渲染和验证。
+
 ### Issue tracker
 
 本仓库的 Issue 和 PRD 使用 GitHub Issues 管理，并通过 `gh` CLI 操作。参见 `docs/agents/issue-tracker.md`。
