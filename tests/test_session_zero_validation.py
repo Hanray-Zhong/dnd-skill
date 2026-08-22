@@ -82,9 +82,11 @@ class SessionZeroValidationFacadeTests(unittest.TestCase):
             "violence": "sometimes",
             "theft": "ask",
         }
-        players[1]["absence_policy"] = {
-            "mode": "delegate",
-            "delegate_player_id": "charlie",
+        players[1]["absence_policies"] = {
+            "borin": {
+                "mode": "delegate",
+                "delegate_player_id": "charlie",
+            }
         }
 
         self.assert_invalid_fields(
@@ -94,7 +96,7 @@ class SessionZeroValidationFacadeTests(unittest.TestCase):
                 "advancement",
                 "players[alice].pvp_preferences.violence",
                 "players[alice].roll_policy",
-                "players[bob].absence_policy.delegate_player_id",
+                "players[bob].absence_policies.borin.delegate_player_id",
                 "private_roll_policy",
             ],
         )
@@ -114,6 +116,7 @@ class SessionZeroValidationFacadeTests(unittest.TestCase):
         safety["boundaries"] = "none"
         players[0]["display_name"] = ""
         players[0]["character_ids"] = "aria"
+        del players[0]["absence_policies"]
         players[0]["preferences"] = "exploration"
 
         self.assert_invalid_fields(
@@ -203,7 +206,9 @@ class SessionZeroValidationFacadeTests(unittest.TestCase):
         players[0]["player_id"] = " "
         if not isinstance(players[1], dict):
             raise AssertionError("测试配置必须包含第二位玩家")
-        players[1]["absence_policy"] = {"mode": "narrative_exit"}
+        players[1]["absence_policies"] = {
+            "borin": {"mode": "narrative_exit"}
+        }
         self.assert_invalid_fields(
             blank_id,
             idempotency_key="blank-player-session-zero-v1",
@@ -282,6 +287,12 @@ class SessionZeroValidationFacadeTests(unittest.TestCase):
         if not isinstance(players, list) or not isinstance(players[1], dict):
             raise AssertionError("测试配置必须包含第二位玩家")
         players[1]["character_ids"] = ["aria"]
+        players[1]["absence_policies"] = {
+            "aria": {
+                "mode": "delegate",
+                "delegate_player_id": "alice",
+            }
+        }
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory) / "campaign"

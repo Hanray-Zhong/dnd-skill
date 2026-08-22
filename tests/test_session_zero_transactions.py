@@ -168,18 +168,18 @@ class SessionZeroTransactionFacadeTests(unittest.TestCase):
                 msg=result.stderr or open_result.stderr,
             )
 
-    def test_session_zero_preserves_an_existing_difficulty_when_defaulting(
+    def test_session_zero_preserves_existing_config_without_a_global_roll_policy(
         self,
     ) -> None:
         configuration = complete_configuration()
-        del configuration["difficulty"]
+        configuration["difficulty"] = "challenging"
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory) / "campaign"
             create_result = run_facade(
                 "create",
                 str(workspace),
                 "--initial-config",
-                json.dumps({"tone": "heroic"}),
+                json.dumps({"roll_policy": "players", "tone": "heroic"}),
             )
             self.assertEqual(0, create_result.returncode, msg=create_result.stderr)
             configure_result = run_facade(
@@ -212,6 +212,7 @@ class SessionZeroTransactionFacadeTests(unittest.TestCase):
                     "revision": 3,
                     "difficulty": "challenging",
                     "tone": "heroic",
+                    "has_global_roll_policy": False,
                     "status": "ready_to_play",
                 },
                 {
@@ -227,6 +228,12 @@ class SessionZeroTransactionFacadeTests(unittest.TestCase):
                     ),
                     "tone": (
                         payload["initial_config"].get("tone")
+                        if isinstance(payload, dict)
+                        and isinstance(payload.get("initial_config"), dict)
+                        else None
+                    ),
+                    "has_global_roll_policy": (
+                        "roll_policy" in payload["initial_config"]
                         if isinstance(payload, dict)
                         and isinstance(payload.get("initial_config"), dict)
                         else None

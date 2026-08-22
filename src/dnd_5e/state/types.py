@@ -2,13 +2,21 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, TypeAlias, TypedDict
 
 
 FailurePoint = Literal["after_event", "before_commit", "after_commit"]
 FailureInjector = Callable[[FailurePoint], None]
 AWAITING_SESSION_ZERO = "awaiting_session_zero"
 READY_TO_PLAY = "ready_to_play"
+
+
+class AudienceDefinition(TypedDict):
+    audience_type: str
+    members: list[str]
+
+
+AudienceMap: TypeAlias = dict[str, AudienceDefinition]
 
 
 @dataclass(frozen=True)
@@ -18,7 +26,7 @@ class CampaignSummary:
     revision: int
     campaign_status: str
     initial_config: dict[str, object]
-    audiences: dict[str, dict[str, object]] = field(default_factory=dict)
+    audiences: AudienceMap = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -43,7 +51,7 @@ class SessionZeroRequest:
     expected_revision: int
     idempotency_key: str
     configuration: dict[str, object]
-    audiences: dict[str, dict[str, object]]
+    audiences: AudienceMap
     source: str
     audience_id: str
 
@@ -63,4 +71,8 @@ class RevisionConflict(Exception):
 
 
 class IdempotencyConflict(Exception):
+    pass
+
+
+class InvalidStateRequest(Exception):
     pass

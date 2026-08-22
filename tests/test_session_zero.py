@@ -18,7 +18,9 @@ def complete_configuration() -> dict[str, object]:
                 "character_ids": ["aria"],
                 "confirmed": True,
                 "roll_policy": "player_rolls",
-                "absence_policy": {"mode": "narrative_exit"},
+                "absence_policies": {
+                    "aria": {"mode": "narrative_exit"},
+                },
                 "pvp_preferences": {
                     "violence": "allow",
                     "theft": "ask",
@@ -37,9 +39,11 @@ def complete_configuration() -> dict[str, object]:
                 "character_ids": ["borin"],
                 "confirmed": True,
                 "roll_policy": "script_rolls",
-                "absence_policy": {
-                    "mode": "delegate",
-                    "delegate_player_id": "alice",
+                "absence_policies": {
+                    "borin": {
+                        "mode": "delegate",
+                        "delegate_player_id": "alice",
+                    },
                 },
                 "pvp_preferences": {
                     "violence": "ask",
@@ -241,18 +245,28 @@ class SessionZeroFacadeTests(unittest.TestCase):
             },
             "pvp_categories": ["violence"],
         }
-        expected_players = [
-            {
-                **player,
-                "absence_policy": {"mode": "narrative_exit"},
-                "pvp_preferences": {"violence": "forbid"},
-                "roll_policy": "player_rolls",
-            }
-            for player in cast(
-                list[dict[str, object]],
-                configuration["players"],
-            )
-        ]
+        expected_configuration: dict[str, object] = {
+            **configuration,
+            "advancement": "xp",
+            "difficulty": "standard",
+            "players": [
+                {
+                    **player,
+                    "absence_policies": {
+                        character_id: {"mode": "narrative_exit"},
+                    },
+                    "pvp_preferences": {"violence": "forbid"},
+                    "roll_policy": "player_rolls",
+                }
+                for player, character_id in zip(
+                    cast(list[dict[str, object]], configuration["players"]),
+                    ("aria", "borin"),
+                    strict=True,
+                )
+            ],
+            "private_roll_policy": "dice_engine",
+            "pvp_policy": {"violence": "forbid"},
+        }
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory) / "campaign"
             create_result = run_facade("create", str(workspace))
@@ -268,55 +282,105 @@ class SessionZeroFacadeTests(unittest.TestCase):
                 "--configuration",
                 json.dumps(configuration, ensure_ascii=False),
             )
-            payload = json.loads(result.stdout) if result.stdout else None
+            error_payload = json.loads(result.stderr) if result.stderr else None
+            details = (
+                error_payload["error"].get("details")
+                if isinstance(error_payload, dict)
+                and isinstance(error_payload.get("error"), dict)
+                else None
+            )
+            resolved_configuration = (
+                details.get("resolved_configuration")
+                if isinstance(details, dict)
+                else None
+            )
+            preview_open_result = run_facade("open", str(workspace))
+            preview_opened = (
+                json.loads(preview_open_result.stdout)
+                if preview_open_result.stdout
+                else None
+            )
 
+            self.assertEqual(
+                {
+                    "returncode": 2,
+                    "code": "session_zero_confirmation_required",
+                    "defaulted_fields": [
+                        "advancement",
+                        "difficulty",
+                        "players[alice].absence_policies.aria",
+                        "players[alice].pvp_preferences.violence",
+                        "players[alice].roll_policy",
+                        "players[bob].absence_policies.borin",
+                        "players[bob].pvp_preferences.violence",
+                        "players[bob].roll_policy",
+                        "private_roll_policy",
+                    ],
+                    "resolved_configuration": expected_configuration,
+                    "preview_revision": 1,
+                    "preview_status": "awaiting_session_zero",
+                },
+                {
+                    "returncode": result.returncode,
+                    "code": (
+                        error_payload["error"].get("code")
+                        if isinstance(error_payload, dict)
+                        and isinstance(error_payload.get("error"), dict)
+                        else None
+                    ),
+                    "defaulted_fields": (
+                        details.get("defaulted_fields")
+                        if isinstance(details, dict)
+                        else None
+                    ),
+                    "resolved_configuration": resolved_configuration,
+                    "preview_revision": (
+                        preview_opened.get("revision")
+                        if isinstance(preview_opened, dict)
+                        else None
+                    ),
+                    "preview_status": (
+                        preview_opened.get("campaign_status")
+                        if isinstance(preview_opened, dict)
+                        else None
+                    ),
+                },
+                msg=result.stderr or preview_open_result.stderr,
+            )
+
+            if not isinstance(resolved_configuration, dict):
+                raise AssertionError("确认预览必须返回完整配置")
+            confirm_result = run_facade(
+                "session-zero",
+                str(workspace),
+                "--expected-revision",
+                "1",
+                "--idempotency-key",
+                "default-session-zero-v1",
+                "--configuration",
+                json.dumps(resolved_configuration, ensure_ascii=False),
+            )
+            confirmed = (
+                json.loads(confirm_result.stdout) if confirm_result.stdout else None
+            )
             self.assertEqual(
                 {
                     "returncode": 0,
                     "status": "ready_to_play",
-                    "defaults": {
-                        "advancement": "xp",
-                        "difficulty": "standard",
-                        "private_roll_policy": "dice_engine",
-                    },
-                    "players": expected_players,
-                    "pvp_policy": {"violence": "forbid"},
+                    "configuration": expected_configuration,
                 },
                 {
-                    "returncode": result.returncode,
+                    "returncode": confirm_result.returncode,
                     "status": (
-                        payload.get("campaign_status")
-                        if isinstance(payload, dict)
+                        confirmed.get("campaign_status")
+                        if isinstance(confirmed, dict)
                         else None
                     ),
-                    "defaults": (
-                        {
-                            "advancement": payload["initial_config"].get(
-                                "advancement"
-                            ),
-                            "difficulty": payload["initial_config"].get(
-                                "difficulty"
-                            ),
-                            "private_roll_policy": payload[
-                                "initial_config"
-                            ].get("private_roll_policy"),
-                        }
-                        if isinstance(payload, dict)
-                        and isinstance(payload.get("initial_config"), dict)
-                        else None
-                    ),
-                    "players": (
-                        payload["initial_config"].get("players")
-                        if isinstance(payload, dict)
-                        and isinstance(payload.get("initial_config"), dict)
-                        else None
-                    ),
-                    "pvp_policy": (
-                        payload["initial_config"].get("pvp_policy")
-                        if isinstance(payload, dict)
-                        and isinstance(payload.get("initial_config"), dict)
+                    "configuration": (
+                        confirmed.get("initial_config")
+                        if isinstance(confirmed, dict)
                         else None
                     ),
                 },
-                msg=result.stderr,
+                msg=confirm_result.stderr,
             )

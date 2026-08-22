@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import json
 from collections import Counter
+from dataclasses import dataclass
+import json
 from pathlib import Path
 import sqlite3
 import uuid
@@ -9,7 +10,9 @@ import uuid
 from dnd_5e.errors import FacadeError
 from dnd_5e.state.session_zero import commit_session_zero
 from dnd_5e.state.types import (
+    AudienceMap,
     IdempotencyConflict,
+    InvalidStateRequest,
     RevisionConflict,
     SessionZeroCompletion,
     SessionZeroRequest,
@@ -28,10 +31,16 @@ _PLAYER_ROLL_POLICIES = {"player_rolls", "script_rolls"}
 _PRIVATE_ROLL_POLICIES = {"dice_engine", "private_pool"}
 
 
+@dataclass(frozen=True)
+class NormalizedSessionZero:
+    configuration: dict[str, object]
+    audiences: AudienceMap
+
+
 def _normalize_configuration(
     configuration: dict[str, object],
     current_config: dict[str, object],
-) -> tuple[dict[str, object], dict[str, dict[str, object]]]:
+) -> NormalizedSessionZero:
     required_fields = ("players", "safety", "pvp_categories")
     missing_fields = [
         field for field in required_fields if field not in configuration
@@ -51,19 +60,21 @@ def _normalize_configuration(
         )
 
     invalid_fields: list[str] = []
+    defaulted_fields: list[str] = []
     if not players_value:
         invalid_fields.append("players")
-    advancement = configuration.get(
-        "advancement",
-        current_config.get("advancement", "xp"),
-    )
-    difficulty = configuration.get(
-        "difficulty",
-        current_config.get("difficulty", "standard"),
-    )
-    private_roll_policy = configuration.get(
+
+    def resolve_root_default(field: str, fallback: object) -> object:
+        if field in configuration:
+            return configuration[field]
+        defaulted_fields.append(field)
+        return current_config.get(field, fallback)
+
+    advancement = resolve_root_default("advancement", "xp")
+    difficulty = resolve_root_default("difficulty", "standard")
+    private_roll_policy = resolve_root_default(
         "private_roll_policy",
-        current_config.get("private_roll_policy", "dice_engine"),
+        "dice_engine",
     )
     if advancement not in _ADVANCEMENT_METHODS:
         invalid_fields.append("advancement")
@@ -71,6 +82,8 @@ def _normalize_configuration(
         invalid_fields.append("difficulty")
     if private_roll_policy not in _PRIVATE_ROLL_POLICIES:
         invalid_fields.append("private_roll_policy")
+    if "roll_policy" in configuration:
+        invalid_fields.append("roll_policy")
     categories_are_valid = (
         bool(categories_value)
         and all(
@@ -96,7 +109,7 @@ def _normalize_configuration(
     players: list[dict[str, object]] = []
     player_ids: list[str] = []
     character_controls: dict[str, list[str]] = {}
-    delegate_targets: list[tuple[str, object]] = []
+    delegate_targets: list[tuple[str, str, object]] = []
     for player_index, player_value in enumerate(players_value):
         if not isinstance(player_value, dict):
             raise FacadeError(
@@ -122,57 +135,89 @@ def _normalize_configuration(
             for character_id in character_ids
         ):
             invalid_fields.append(f"players[{player_label}].character_ids")
+        valid_character_ids = (
+            [value for value in character_ids if isinstance(value, str)]
+            if isinstance(character_ids, list)
+            else []
+        )
         if not isinstance(player_preferences, dict):
             invalid_fields.append(f"players[{player_label}].preferences")
-        preferences = player_value.get("pvp_preferences")
-        roll_policy = player_value.get("roll_policy", "player_rolls")
-        absence_policy = player_value.get(
-            "absence_policy",
-            {"mode": "narrative_exit"},
-        )
+        preferences_value = player_value.get("pvp_preferences")
+        if preferences_value is None:
+            preferences: dict[str, object] = {}
+        elif isinstance(preferences_value, dict):
+            preferences = preferences_value
+        else:
+            preferences = {}
+            invalid_fields.append(f"players[{player_label}].pvp_preferences")
+        if "roll_policy" in player_value:
+            roll_policy = player_value["roll_policy"]
+        else:
+            roll_policy = "player_rolls"
+            defaulted_fields.append(f"players[{player_label}].roll_policy")
         if roll_policy not in _PLAYER_ROLL_POLICIES:
             invalid_fields.append(f"players[{player_label}].roll_policy")
-        if not isinstance(absence_policy, dict):
+
+        if "absence_policy" in player_value:
             invalid_fields.append(f"players[{player_label}].absence_policy")
+        absence_policies_value = player_value.get("absence_policies")
+        if absence_policies_value is None:
+            absence_policies: dict[str, object] = {}
+        elif isinstance(absence_policies_value, dict):
+            absence_policies = absence_policies_value
         else:
+            absence_policies = {}
+            invalid_fields.append(f"players[{player_label}].absence_policies")
+        for character_id in absence_policies:
+            if character_id not in valid_character_ids:
+                invalid_fields.append(
+                    f"players[{player_label}].absence_policies.{character_id}"
+                )
+        normalized_absence_policies: dict[str, object] = {}
+        for character_id in valid_character_ids:
+            absence_policy = absence_policies.get(character_id)
+            field = f"players[{player_label}].absence_policies.{character_id}"
+            if absence_policy is None:
+                absence_policy = {"mode": "narrative_exit"}
+                defaulted_fields.append(field)
+            if not isinstance(absence_policy, dict):
+                invalid_fields.append(field)
+                continue
             absence_mode = absence_policy.get("mode")
             if absence_mode not in _ABSENCE_MODES:
-                invalid_fields.append(
-                    f"players[{player_label}].absence_policy.mode"
-                )
+                invalid_fields.append(f"{field}.mode")
             elif absence_mode == "delegate":
                 delegate_targets.append(
-                    (player_label, absence_policy.get("delegate_player_id"))
-                )
-        if isinstance(preferences, dict):
-            for category in categories_value:
-                decision = preferences.get(category)
-                if (
-                    isinstance(category, str)
-                    and decision is not None
-                    and decision not in _PVP_STRICTNESS
-                ):
-                    invalid_fields.append(
-                        f"players[{player_label}].pvp_preferences.{category}"
+                    (
+                        player_label,
+                        character_id,
+                        absence_policy.get("delegate_player_id"),
                     )
-        normalized_pvp_preferences = {
-            category: (
-                preferences.get(category)
-                if isinstance(preferences, dict)
-                and preferences.get(category) is not None
-                else "forbid"
-            )
-            for category in categories_value
-            if isinstance(category, str)
+                )
+            normalized_absence_policies[character_id] = absence_policy
+
+        normalized_pvp_preferences: dict[str, object] = {}
+        for category in categories_value:
+            if not isinstance(category, str):
+                continue
+            field = f"players[{player_label}].pvp_preferences.{category}"
+            if category not in preferences:
+                decision: object = "forbid"
+                defaulted_fields.append(field)
+            else:
+                decision = preferences[category]
+            if not isinstance(decision, str) or decision not in _PVP_STRICTNESS:
+                invalid_fields.append(field)
+            normalized_pvp_preferences[category] = decision
+
+        normalized_player = {
+            **player_value,
+            "absence_policies": normalized_absence_policies,
+            "pvp_preferences": normalized_pvp_preferences,
+            "roll_policy": roll_policy,
         }
-        players.append(
-            {
-                **player_value,
-                "absence_policy": absence_policy,
-                "pvp_preferences": normalized_pvp_preferences,
-                "roll_policy": roll_policy,
-            }
-        )
+        normalized_player.pop("absence_policy", None)
+        players.append(normalized_player)
         player_ids.append(player_id)
         if isinstance(character_ids, list):
             for character_id in character_ids:
@@ -191,14 +236,15 @@ def _normalize_configuration(
             {"duplicate_player_ids": duplicate_player_ids},
         )
 
-    for player_id, delegate_target in delegate_targets:
+    for player_id, character_id, delegate_target in delegate_targets:
         if (
             not isinstance(delegate_target, str)
             or delegate_target not in player_ids
             or delegate_target == player_id
         ):
             invalid_fields.append(
-                f"players[{player_id}].absence_policy.delegate_player_id"
+                "players["
+                f"{player_id}].absence_policies.{character_id}.delegate_player_id"
             )
     if invalid_fields:
         raise FacadeError(
@@ -236,6 +282,64 @@ def _normalize_configuration(
         for player_id in player_ids
         if player_id not in safety_confirmations
     ]
+    categories = [
+        category for category in categories_value if isinstance(category, str)
+    ]
+    pvp_policy: dict[str, str] = {}
+    for category in categories:
+        strictest = "allow"
+        for player in players:
+            normalized_preferences_value = player.get("pvp_preferences")
+            decision = (
+                normalized_preferences_value.get(category)
+                if isinstance(normalized_preferences_value, dict)
+                else None
+            )
+            if not isinstance(decision, str) or decision not in _PVP_STRICTNESS:
+                decision = "forbid"
+            if _PVP_STRICTNESS[decision] > _PVP_STRICTNESS[strictest]:
+                strictest = decision
+        pvp_policy[category] = strictest
+
+    merged_configuration = {
+        **current_config,
+        **configuration,
+        "advancement": advancement,
+        "difficulty": difficulty,
+        "players": players,
+        "private_roll_policy": private_roll_policy,
+        "pvp_policy": pvp_policy,
+    }
+    merged_configuration.pop("roll_policy", None)
+    normalized = json.loads(
+        json.dumps(
+            merged_configuration,
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+    )
+    if not isinstance(normalized, dict):
+        raise AssertionError("规范化后的 Session Zero 配置必须是 object")
+
+    audiences: AudienceMap = {
+        "dm": {"audience_type": "dm", "members": []},
+        "table": {"audience_type": "table", "members": player_ids},
+    }
+    for player_id in player_ids:
+        audiences[f"player:{player_id}"] = {
+            "audience_type": "player",
+            "members": [player_id],
+        }
+    normalized_defaulted_fields = tuple(sorted(set(defaulted_fields)))
+    if normalized_defaulted_fields:
+        raise FacadeError(
+            "session_zero_confirmation_required",
+            "Session Zero 默认值必须先显式展示并由玩家确认。",
+            {
+                "defaulted_fields": list(normalized_defaulted_fields),
+                "resolved_configuration": normalized,
+            },
+        )
     if missing_player_confirmations or missing_safety_confirmations:
         raise FacadeError(
             "session_zero_incomplete",
@@ -245,54 +349,10 @@ def _normalize_configuration(
                 "missing_safety_confirmations": missing_safety_confirmations,
             },
         )
-
-    categories = [
-        category for category in categories_value if isinstance(category, str)
-    ]
-    pvp_policy: dict[str, str] = {}
-    for category in categories:
-        strictest = "allow"
-        for player in players:
-            preferences = player.get("pvp_preferences")
-            decision = (
-                preferences.get(category)
-                if isinstance(preferences, dict)
-                else None
-            )
-            if not isinstance(decision, str) or decision not in _PVP_STRICTNESS:
-                decision = "forbid"
-            if _PVP_STRICTNESS[decision] > _PVP_STRICTNESS[strictest]:
-                strictest = decision
-        pvp_policy[category] = strictest
-
-    normalized = json.loads(
-        json.dumps(
-            {
-                **current_config,
-                **configuration,
-                "advancement": advancement,
-                "difficulty": difficulty,
-                "players": players,
-                "private_roll_policy": private_roll_policy,
-                "pvp_policy": pvp_policy,
-            },
-            ensure_ascii=False,
-            allow_nan=False,
-        )
+    return NormalizedSessionZero(
+        configuration=normalized,
+        audiences=audiences,
     )
-    if not isinstance(normalized, dict):
-        raise AssertionError("规范化后的 Session Zero 配置必须是 object")
-
-    audiences: dict[str, dict[str, object]] = {
-        "dm": {"audience_type": "dm", "members": []},
-        "table": {"audience_type": "table", "members": player_ids},
-    }
-    for player_id in player_ids:
-        audiences[f"player:{player_id}"] = {
-            "audience_type": "player",
-            "members": [player_id],
-        }
-    return normalized, audiences
 
 
 def complete_session_zero(
@@ -308,15 +368,15 @@ def complete_session_zero(
             "状态变更请求必须包含有效修订号和幂等键。",
         )
     _, database_path, current = _load_existing_campaign(workspace)
-    normalized, audiences = _normalize_configuration(
+    normalized = _normalize_configuration(
         configuration,
         current.initial_config,
     )
     request = SessionZeroRequest(
         expected_revision=expected_revision,
         idempotency_key=idempotency_key,
-        configuration=normalized,
-        audiences=audiences,
+        configuration=normalized.configuration,
+        audiences=normalized.audiences,
         source="dnd-5e-campaign-start",
         audience_id="dm",
     )
@@ -341,6 +401,11 @@ def complete_session_zero(
         raise FacadeError(
             "idempotency_conflict",
             "该幂等键已用于不同的状态变更请求。",
+        ) from error
+    except InvalidStateRequest as error:
+        raise FacadeError(
+            "invalid_state_request",
+            "状态变更请求包含无效的 Session Zero 受众配置。",
         ) from error
     except (OSError, sqlite3.Error) as error:
         raise FacadeError(

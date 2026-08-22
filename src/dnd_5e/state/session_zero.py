@@ -4,11 +4,13 @@ import json
 from pathlib import Path
 import sqlite3
 
+from dnd_5e.state.audiences import validate_audiences
 from dnd_5e.state.encoding import canonical_json
 from dnd_5e.state.types import (
     AWAITING_SESSION_ZERO,
     CampaignSummary,
     IdempotencyConflict,
+    InvalidStateRequest,
     READY_TO_PLAY,
     RevisionConflict,
     SessionZeroCompletion,
@@ -40,11 +42,13 @@ def _completion_from_result(
         or not isinstance(audiences, dict)
     ):
         raise sqlite3.DatabaseError("Session Zero 幂等请求结果损坏")
-    typed_audiences: dict[str, dict[str, object]] = {}
-    for audience_id, definition in audiences.items():
-        if not isinstance(audience_id, str) or not isinstance(definition, dict):
-            raise sqlite3.DatabaseError("Session Zero 幂等请求结果损坏")
-        typed_audiences[audience_id] = definition
+    try:
+        typed_audiences = validate_audiences(
+            audiences,
+            required_audience_id=request.audience_id,
+        )
+    except InvalidStateRequest as error:
+        raise sqlite3.DatabaseError("Session Zero 幂等请求结果损坏") from error
     return SessionZeroCompletion(
         summary=CampaignSummary(
             campaign_id=campaign_id,
@@ -67,10 +71,21 @@ def commit_session_zero(
     event_id: str,
     committed_at: str,
 ) -> SessionZeroCompletion:
+    if (
+        request.expected_revision < 1
+        or not request.idempotency_key.strip()
+        or not request.source.strip()
+        or not request.audience_id.strip()
+    ):
+        raise InvalidStateRequest("Session Zero 状态请求字段无效")
+    validated_audiences = validate_audiences(
+        request.audiences,
+        required_audience_id=request.audience_id,
+    )
     request_json = canonical_json(
         {
             "audience_id": request.audience_id,
-            "audiences": request.audiences,
+            "audiences": validated_audiences,
             "configuration": request.configuration,
             "expected_revision": request.expected_revision,
             "operation": "complete_session_zero",
@@ -144,7 +159,7 @@ def commit_session_zero(
             )
             event_payload = canonical_json(
                 {
-                    "audiences": request.audiences,
+                    "audiences": validated_audiences,
                     "campaign_id": current.campaign_id,
                     "campaign_status": READY_TO_PLAY,
                     "configuration": request.configuration,
@@ -157,7 +172,7 @@ def commit_session_zero(
                 revision=new_revision,
                 campaign_status=READY_TO_PLAY,
                 initial_config=request.configuration,
-                audiences=request.audiences,
+                audiences=validated_audiences,
             )
             result_json = canonical_json(
                 {
@@ -195,7 +210,7 @@ def commit_session_zero(
                 "UPDATE campaign_metadata SET current_revision = ? WHERE singleton = 1",
                 (new_revision,),
             )
-            for audience_id, definition in request.audiences.items():
+            for audience_id, definition in validated_audiences.items():
                 audience_type = definition.get("audience_type")
                 members = definition.get("members")
                 connection.execute(
