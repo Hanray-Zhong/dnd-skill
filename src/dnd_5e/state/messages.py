@@ -6,11 +6,14 @@ import sqlite3
 
 from dnd_5e.messaging.protocol import (
     AmbiguousAction,
+    MessageScene,
     MessageType,
     PERSISTED_MESSAGE_TYPES,
     character_controls,
     classify_message,
     message_audience_id,
+    message_scene_entity_id,
+    parse_message_scene,
 )
 from dnd_5e.state.audiences import read_audiences, validate_audiences
 from dnd_5e.state.encoding import canonical_json
@@ -71,6 +74,36 @@ def _record_from_result(
     )
 
 
+def _load_message_scene(
+    connection: sqlite3.Connection,
+    scene_id: str,
+) -> MessageScene:
+    row = connection.execute(
+        """
+        SELECT payload_json
+        FROM entities
+        WHERE entity_id = ? AND entity_type = 'scene'
+        """,
+        (message_scene_entity_id(scene_id),),
+    ).fetchone()
+    if row is None:
+        raise InvalidStateRequest("目标场景不存在")
+    try:
+        scene = parse_message_scene(json.loads(row[0]))
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise InvalidStateRequest("目标场景交互上下文损坏") from error
+    if scene.scene_id != scene_id:
+        raise InvalidStateRequest("目标场景标识不一致")
+    return scene
+
+
+def read_message_scene(database_path: Path, *, scene_id: str) -> MessageScene:
+    database_uri = f"{database_path.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(database_uri, uri=True) as connection:
+        connection.execute("PRAGMA query_only = ON")
+        return _load_message_scene(connection, scene_id)
+
+
 def record_message(
     database_path: Path,
     *,
@@ -100,8 +133,6 @@ def record_message(
     if (
         classification.message_type != request.message_type
         or classification.content != request.content
-        or request.audience_id
-        != message_audience_id(request.message_type, request.speaker_id)
     ):
         raise InvalidStateRequest("消息状态请求与权威分类不一致")
     request_json = canonical_json(
@@ -180,6 +211,19 @@ def record_message(
                 or request.character_id not in controls[request.speaker_id]
             ):
                 raise InvalidStateRequest("消息发言者或角色控制权无效")
+            scene = _load_message_scene(connection, request.scene_id)
+            if (
+                request.speaker_id not in scene.participant_player_ids
+                or request.character_id
+                not in scene.character_controls.get(request.speaker_id, frozenset())
+                or request.audience_id
+                != message_audience_id(
+                    request.message_type,
+                    request.speaker_id,
+                    scene,
+                )
+            ):
+                raise InvalidStateRequest("消息场景成员、交互模式或受众无效")
             typed_audiences = read_audiences(connection)
             if request.audience_id not in typed_audiences:
                 raise InvalidStateRequest("消息事件受众不存在")

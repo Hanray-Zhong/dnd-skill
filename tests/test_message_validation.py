@@ -25,7 +25,7 @@ class MessageValidationTests(unittest.TestCase):
                 "--character",
                 "aria",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-ambiguous-action-1",
                 "--expected-revision",
@@ -45,7 +45,7 @@ class MessageValidationTests(unittest.TestCase):
                         "message": "角色行动标记不完整，必须先澄清而不能修改战役状态。",
                         "details": {
                             "input_reference": "message-ambiguous-action-1",
-                            "scene_id": "scene-entrance",
+                            "scene_id": "table",
                             "speaker_id": "alice",
                         },
                     },
@@ -80,7 +80,7 @@ class MessageValidationTests(unittest.TestCase):
                 "--character",
                 "aria",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-unauthorized-character-1",
                 "--expected-revision",
@@ -99,7 +99,7 @@ class MessageValidationTests(unittest.TestCase):
                         "character_id": "aria",
                         "input_reference": "message-unauthorized-character-1",
                         "message_type": "character_dialogue",
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "speaker_id": "bob",
                     },
                     "returncode": 2,
@@ -139,7 +139,7 @@ class MessageValidationTests(unittest.TestCase):
                 "--speaker",
                 "mallory",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-unknown-speaker-1",
                 "--text",
@@ -169,6 +169,53 @@ class MessageValidationTests(unittest.TestCase):
                         if isinstance(payload, dict)
                         and isinstance(payload.get("error"), dict)
                         and isinstance(payload["error"].get("details"), dict)
+                        else None
+                    ),
+                    "open_revision": (
+                        reopened.get("revision")
+                        if isinstance(reopened, dict)
+                        else None
+                    ),
+                },
+                msg=result.stdout or opened.stderr,
+            )
+
+    def test_unknown_scene_is_rejected_before_any_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory) / "campaign"
+            create_ready_campaign(workspace)
+
+            result = run_facade(
+                "message",
+                str(workspace),
+                "--speaker",
+                "alice",
+                "--scene",
+                "missing-scene",
+                "--input-reference",
+                "message-unknown-scene-1",
+                "--text",
+                "//我在这里吗？",
+            )
+            opened = run_facade("open", str(workspace))
+            payload = json.loads(result.stderr) if result.stderr else None
+            reopened = json.loads(opened.stdout) if opened.stdout else None
+
+            self.assertEqual(
+                {
+                    "returncode": 2,
+                    "error": {
+                        "code": "invalid_message_context",
+                        "message": "目标场景不存在或消息交互上下文无效。",
+                        "details": {"scene_id": "missing-scene"},
+                    },
+                    "open_revision": 2,
+                },
+                {
+                    "returncode": result.returncode,
+                    "error": (
+                        payload.get("error")
+                        if isinstance(payload, dict)
                         else None
                     ),
                     "open_revision": (

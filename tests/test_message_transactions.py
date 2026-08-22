@@ -25,7 +25,7 @@ def record_dialogue(
         "--character",
         "aria",
         "--scene",
-        "scene-entrance",
+        "table",
         "--input-reference",
         input_reference,
         "--expected-revision",

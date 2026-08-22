@@ -40,7 +40,7 @@ class MessageFacadeTests(unittest.TestCase):
                 "--speaker",
                 "alice",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-ooc-1",
                 "--text",
@@ -59,7 +59,7 @@ class MessageFacadeTests(unittest.TestCase):
                         "type": "ooc",
                         "speaker_id": "alice",
                         "character_id": None,
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "input_reference": "message-ooc-1",
                         "content": "先暂停一下",
                         "explicit": False,
@@ -68,19 +68,19 @@ class MessageFacadeTests(unittest.TestCase):
                     "output_layers": {
                         "scene_narrative": {
                             "audience_id": "table",
-                            "scene_id": "scene-entrance",
+                            "scene_id": "table",
                             "status": "no_scene_change",
                             "items": [],
                         },
                         "table_prompt": {
                             "audience_id": "table",
-                            "scene_id": "scene-entrance",
+                            "scene_id": "table",
                             "status": "none",
                             "items": [],
                         },
                         "audit_record": {
                             "audience_id": "dm",
-                            "scene_id": "scene-entrance",
+                            "scene_id": "table",
                             "items": [
                                 {
                                     "character_id": None,
@@ -90,7 +90,7 @@ class MessageFacadeTests(unittest.TestCase):
                                     "message_type": "ooc",
                                     "persisted": False,
                                     "revision": 2,
-                                    "scene_id": "scene-entrance",
+                                    "scene_id": "table",
                                     "source": "dnd-5e",
                                     "speaker_id": "alice",
                                     "state_changes": {},
@@ -150,7 +150,7 @@ class MessageFacadeTests(unittest.TestCase):
                 "--character",
                 "aria",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-dialogue-1",
                 "--expected-revision",
@@ -182,7 +182,7 @@ class MessageFacadeTests(unittest.TestCase):
                         "type": "character_dialogue",
                         "speaker_id": "alice",
                         "character_id": "aria",
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "input_reference": "message-dialogue-1",
                         "content": "我们往北门走。",
                         "explicit": True,
@@ -191,19 +191,19 @@ class MessageFacadeTests(unittest.TestCase):
                     "output_layers": {
                         "scene_narrative": {
                             "audience_id": "table",
-                            "scene_id": "scene-entrance",
+                            "scene_id": "table",
                             "status": "no_scene_change",
                             "items": [],
                         },
                         "table_prompt": {
                             "audience_id": "table",
-                            "scene_id": "scene-entrance",
+                            "scene_id": "table",
                             "status": "none",
                             "items": [],
                         },
                         "audit_record": {
                             "audience_id": "dm",
-                            "scene_id": "scene-entrance",
+                            "scene_id": "table",
                             "items": [
                                 {
                                     "character_id": "aria",
@@ -213,7 +213,7 @@ class MessageFacadeTests(unittest.TestCase):
                                     "message_type": "character_dialogue",
                                     "persisted": True,
                                     "revision": 3,
-                                    "scene_id": "scene-entrance",
+                                    "scene_id": "table",
                                     "source": "dnd-5e",
                                     "speaker_id": "alice",
                                     "state_changes": {
@@ -292,7 +292,7 @@ class MessageFacadeTests(unittest.TestCase):
                 "--character",
                 "aria",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-action-1",
                 "--expected-revision",
@@ -310,7 +310,7 @@ class MessageFacadeTests(unittest.TestCase):
                         "type": "character_action",
                         "speaker_id": "alice",
                         "character_id": "aria",
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "input_reference": "message-action-1",
                         "content": "我尝试撬开北门",
                         "explicit": True,
@@ -318,13 +318,13 @@ class MessageFacadeTests(unittest.TestCase):
                     },
                     "scene_narrative": {
                         "audience_id": "table",
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "status": "no_scene_change",
                         "items": [],
                     },
                     "table_prompt": {
                         "audience_id": "table",
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "status": "action_required",
                         "items": [
                             {
@@ -381,7 +381,7 @@ class MessageFacadeTests(unittest.TestCase):
                 "--speaker",
                 "bob",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-ooc-2",
                 "--text",

@@ -4,6 +4,10 @@ import json
 from pathlib import Path
 import sqlite3
 
+from dnd_5e.messaging.protocol import (
+    build_initial_message_scene,
+    message_scene_entity_id,
+)
 from dnd_5e.state.audiences import validate_audiences
 from dnd_5e.state.encoding import canonical_json
 from dnd_5e.state.types import (
@@ -151,6 +155,7 @@ def commit_session_zero(
                 raise RevisionConflict(current)
 
             new_revision = current.revision + 1
+            initial_scene = build_initial_message_scene(request.configuration)
             updated_payload = canonical_json(
                 {
                     "campaign_status": READY_TO_PLAY,
@@ -164,6 +169,7 @@ def commit_session_zero(
                     "campaign_status": READY_TO_PLAY,
                     "configuration": request.configuration,
                     "expected_revision": request.expected_revision,
+                    "initial_scene": initial_scene,
                 }
             )
             summary = CampaignSummary(
@@ -226,6 +232,19 @@ def commit_session_zero(
                         canonical_json({"members": members}),
                     ),
                 )
+            initial_scene_id = initial_scene.get("scene_id")
+            if not isinstance(initial_scene_id, str):
+                raise InvalidStateRequest("初始消息场景标识无效")
+            connection.execute(
+                "INSERT INTO entities VALUES (?, ?, ?, ?, ?)",
+                (
+                    message_scene_entity_id(initial_scene_id),
+                    "scene",
+                    1,
+                    new_revision,
+                    canonical_json(initial_scene),
+                ),
+            )
             connection.execute(
                 "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (

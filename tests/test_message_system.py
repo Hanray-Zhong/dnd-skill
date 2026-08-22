@@ -21,7 +21,7 @@ class MessageSystemTests(unittest.TestCase):
                 "--speaker",
                 "alice",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-system-report-1",
                 "--text",
@@ -39,7 +39,7 @@ class MessageSystemTests(unittest.TestCase):
                         "type": "system",
                         "speaker_id": "alice",
                         "character_id": None,
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "input_reference": "message-system-report-1",
                         "content": "d20=17",
                         "explicit": True,
@@ -47,13 +47,13 @@ class MessageSystemTests(unittest.TestCase):
                     },
                     "scene_narrative": {
                         "audience_id": "table",
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "status": "no_scene_change",
                         "items": [],
                     },
                     "table_prompt": {
                         "audience_id": "table",
-                        "scene_id": "scene-entrance",
+                        "scene_id": "table",
                         "status": "validation_required",
                         "items": [
                             {
@@ -115,7 +115,7 @@ class MessageSystemTests(unittest.TestCase):
                 "--speaker",
                 "alice",
                 "--scene",
-                "scene-entrance",
+                "table",
                 "--input-reference",
                 "message-forged-system-1",
                 "--expected-revision",

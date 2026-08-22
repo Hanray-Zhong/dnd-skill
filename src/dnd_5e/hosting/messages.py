@@ -9,13 +9,14 @@ from dnd_5e.messaging.protocol import (
     AmbiguousAction,
     CHARACTER_MESSAGE_TYPES,
     ClassifiedMessage,
+    MessageScene,
     TablePromptKind,
     character_controls,
     classify_message,
     message_audience_id,
     message_policy,
 )
-from dnd_5e.state.messages import record_message
+from dnd_5e.state.messages import read_message_scene, record_message
 from dnd_5e.state.types import (
     IdempotencyConflict,
     InvalidStateRequest,
@@ -38,7 +39,7 @@ def _output_layers(
     *,
     speaker_id: str,
     character_id: str | None,
-    scene_id: str,
+    scene: MessageScene,
     input_reference: str,
     audience_id: str,
     revision: int,
@@ -82,19 +83,19 @@ def _output_layers(
     return {
         "scene_narrative": {
             "audience_id": audience_id,
-            "scene_id": scene_id,
-            "status": "no_scene_change",
+            "scene_id": scene.scene_id,
+            "status": scene.narrative_projection.value,
             "items": [],
         },
         "table_prompt": {
             "audience_id": audience_id,
-            "scene_id": scene_id,
+            "scene_id": scene.scene_id,
             "status": policy.prompt_status,
             "items": prompt_items,
         },
         "audit_record": {
             "audience_id": "dm",
-            "scene_id": scene_id,
+            "scene_id": scene.scene_id,
             "items": [
                 {
                     "character_id": character_id,
@@ -104,7 +105,7 @@ def _output_layers(
                     "message_type": classification.message_type.value,
                     "persisted": policy.persisted,
                     "revision": revision,
-                    "scene_id": scene_id,
+                    "scene_id": scene.scene_id,
                     "source": _MESSAGE_SOURCE,
                     "speaker_id": speaker_id,
                     "state_changes": state_changes,
@@ -160,8 +161,29 @@ def handle_message(
             "发言者不在稳定玩家名册中。",
             {"speaker_id": speaker_id},
         )
+    try:
+        scene = read_message_scene(database_path, scene_id=scene_id)
+    except InvalidStateRequest as error:
+        raise FacadeError(
+            "invalid_message_context",
+            "目标场景不存在或消息交互上下文无效。",
+            {"scene_id": scene_id},
+        ) from error
+    except (OSError, sqlite3.Error, TypeError, ValueError) as error:
+        raise _invalid_state_store() from error
+    if speaker_id not in scene.participant_player_ids:
+        raise FacadeError(
+            "scene_access_forbidden",
+            "发言者不属于目标场景的交互参与者。",
+            {"scene_id": scene_id, "speaker_id": speaker_id},
+        )
     if classification.message_type in CHARACTER_MESSAGE_TYPES:
-        if character_id is None or character_id not in controls[speaker_id]:
+        scene_characters = scene.character_controls.get(speaker_id, frozenset())
+        if (
+            character_id is None
+            or character_id not in controls[speaker_id]
+            or character_id not in scene_characters
+        ):
             raise FacadeError(
                 "character_control_forbidden",
                 "发言者无权控制该角色。",
@@ -183,6 +205,7 @@ def handle_message(
     audience_id = message_audience_id(
         classification.message_type,
         speaker_id,
+        scene,
     )
     transaction: dict[str, object] | None = None
     if policy.persisted:
@@ -199,7 +222,7 @@ def handle_message(
             input_reference=input_reference,
             speaker_id=speaker_id,
             character_id=character_id,
-            scene_id=scene_id,
+            scene_id=scene.scene_id,
             message_type=classification.message_type,
             raw_text=text,
             content=classification.content,
@@ -270,7 +293,7 @@ def handle_message(
             classification,
             speaker_id=speaker_id,
             character_id=character_id,
-            scene_id=scene_id,
+            scene=scene,
             input_reference=input_reference,
             audience_id=audience_id,
             revision=summary.revision,
