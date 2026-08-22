@@ -13,9 +13,10 @@ from tools.rules_library.pdf_layout import (
     extract_layout,
     extract_outline,
     load_dependencies,
-    lookup_key,
     outline_markers,
 )
+from tools.rules_library.table_entities import table_row_entities
+from tools.rules_library.text import lookup_key, title_aliases
 
 
 def _option_number(options: dict[str, object], key: str, default: float) -> float:
@@ -53,7 +54,7 @@ def _detected_markers(lines: list[LayoutLine], source: SourceSpec) -> list[Marke
     detected: list[Marker] = []
     previous_line: LayoutLine | None = None
     for line in lines:
-        if not _is_heading(line, source.options):
+        if line.block_kind == "table" or not _is_heading(line, source.options):
             previous_line = line
             continue
         if (
@@ -62,10 +63,24 @@ def _detected_markers(lines: list[LayoutLine], source: SourceSpec) -> list[Marke
             and detected[-1].line_index == previous_line.index
             and previous_line.page == line.page
             and previous_line.column == line.column
-            and line.top - previous_line.top <= 18
+            and (
+                line.top - previous_line.top <= 18
+                or (
+                    previous_line.structure_group is not None
+                    and previous_line.structure_group == line.structure_group
+                    and line.top - previous_line.top
+                    <= max(30, previous_line.size * 2.2)
+                )
+            )
             and re.fullmatch(r"[\x00-\x7f\s\W]+", line.text) is not None
         ):
-            detected[-1].title = f"{detected[-1].title} {line.text}"
+            combined_title = f"{detected[-1].title} {line.text}"
+            detected[-1].title = combined_title
+            detected[-1].chapter_path = (
+                *detected[-1].chapter_path[:-1],
+                combined_title,
+            )
+            detected[-1].heading_end_index = line.index
             previous_line = line
             continue
         detected.append(
@@ -75,6 +90,7 @@ def _detected_markers(lines: list[LayoutLine], source: SourceSpec) -> list[Marke
                 level=_heading_level(line.size),
                 chapter_path=(line.text,),
                 origin="detected",
+                heading_end_index=line.index,
             )
         )
         previous_line = line
@@ -98,6 +114,7 @@ def _merge_markers(outline: list[Marker], detected: list[Marker]) -> list[Marker
         )
         if duplicate is not None:
             duplicate.origin = "outline+detected"
+            duplicate.heading_end_index = candidate.heading_end_index
             if len(candidate.title) < len(duplicate.title) * 2:
                 duplicate.title = candidate.title
             continue
@@ -150,7 +167,7 @@ def _entity_category(
             continue
         matched = False
         if detector == "spell_fields":
-            matched = sum(
+            matched = line.is_colored and sum(
                 label in context
                 for label in ("施法时间", "施法距离", "法术成分", "持续时间")
             ) >= 3
@@ -172,20 +189,6 @@ def _entity_category(
     return "semantic_section"
 
 
-def _aliases(title: str) -> tuple[str, ...]:
-    aliases = [title]
-    english_start = re.search(r"[A-Za-z]", title)
-    if english_start is not None:
-        chinese = title[: english_start.start()].strip(" ：:，,、")
-        english = title[english_start.start() :].strip()
-        english = re.split(r"\s+(?:[0-9０-９]+\s*[环级换]|戏法)\b", english)[0]
-        if chinese:
-            aliases.append(chinese)
-        if english:
-            aliases.append(english)
-    return tuple(dict.fromkeys(alias for alias in aliases if alias))
-
-
 def _rule_status(title: str) -> tuple[str, str]:
     if any(
         keyword in title.casefold()
@@ -201,7 +204,11 @@ def _render_body(lines: list[LayoutLine]) -> str:
     for line in lines:
         if previous_page is not None and line.page != previous_page:
             rendered.append("")
-        rendered.append(f"{line.text}  ")
+        rendered.append(
+            line.rendered_text
+            if line.block_kind in {"table", "sidebar", "footnote"}
+            else f"{line.rendered_text}  "
+        )
         previous_page = line.page
     return "\n".join(rendered).strip()
 
@@ -223,7 +230,7 @@ def extract_pdf(path: Path, source: SourceSpec) -> ExtractedSource:
     outline = extract_outline(reader, source)
     try:
         cid_maps = recover_cid_maps(reader, source)
-        lines, heights = extract_layout(pdfplumber, path, labels, cid_maps)
+        lines, heights = extract_layout(pdfplumber, path, labels, cid_maps, source)
     except BuildError:
         raise
     except Exception as error:
@@ -260,7 +267,14 @@ def extract_pdf(path: Path, source: SourceSpec) -> ExtractedSource:
         next_index = (
             markers[position + 1].line_index if position + 1 < len(markers) else len(lines)
         )
-        body_lines = lines[marker.line_index + 1 : next_index]
+        body_start = (
+            marker.heading_end_index
+            if marker.heading_end_index is not None
+            else marker.line_index
+        ) + 1
+        body_lines = lines[body_start:next_index]
+        if line.block_kind == "table":
+            body_lines = [line, *body_lines]
         context = " ".join(
             candidate.text
             for candidate in lines[marker.line_index + 1 : marker.line_index + 15]
@@ -276,7 +290,7 @@ def extract_pdf(path: Path, source: SourceSpec) -> ExtractedSource:
             source=source,
             title=marker.title,
             category=category,
-            aliases=_aliases(marker.title),
+            aliases=title_aliases(marker.title),
             chapter_path=marker.chapter_path,
             rule_status=status,
             activation_condition=activation,
@@ -290,6 +304,18 @@ def extract_pdf(path: Path, source: SourceSpec) -> ExtractedSource:
                 asset.pages.append(body_line.page)
                 asset.page_labels.append(body_line.page_label)
         assets.append(asset)
+        for body_line in body_lines:
+            if body_line.block_kind != "table":
+                continue
+            assets.extend(
+                table_row_entities(
+                    parent=asset,
+                    table_markdown=body_line.rendered_text,
+                    page=body_line.page,
+                    page_label=body_line.page_label,
+                    first_order=len(assets),
+                )
+            )
     return ExtractedSource(
         source=source,
         assets=tuple(assets),
@@ -297,4 +323,18 @@ def extract_pdf(path: Path, source: SourceSpec) -> ExtractedSource:
         outline_count=len(outline),
         total_text_characters=sum(len(line.text) for line in lines),
         page_labels=tuple(labels),
+        structure_counts={
+            kind: len(
+                {
+                    line.structure_group
+                    for line in lines
+                    if line.block_kind == kind and line.structure_group is not None
+                }
+            )
+            for kind in ("table", "sidebar", "footnote")
+        },
+        parser_versions={
+            "pdfplumber": str(getattr(pdfplumber, "__version__", "unknown")),
+            "pypdf": str(getattr(pypdf, "__version__", "unknown")),
+        },
     )

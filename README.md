@@ -8,7 +8,7 @@
 - Python 自带的 `sqlite3`，SQLite 3.37 或更高版本；
 - 运行时无第三方依赖。
 
-只有开发期 PDF 构建需要 `rules-build` 可选依赖；它们不会进入运行时依赖或本地预览 wheel。
+只有开发期 PDF 构建需要 `rules-build` 可选依赖；其版本由 `uv.lock` 固定，并且不会进入运行时依赖或本地预览 wheel。
 
 ## 快速开始
 

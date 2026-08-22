@@ -16,6 +16,7 @@ class DraftAsset:
     activation_condition: str
     explicit_references: tuple[str, ...]
     order: int
+    parent_order: int | None = None
     pages: list[int] = field(default_factory=list)
     page_labels: list[str] = field(default_factory=list)
     body_parts: list[str] = field(default_factory=list)
@@ -36,3 +37,5 @@ class ExtractedSource:
     outline_count: int
     total_text_characters: int
     page_labels: tuple[str, ...]
+    structure_counts: dict[str, int]
+    parser_versions: dict[str, str]

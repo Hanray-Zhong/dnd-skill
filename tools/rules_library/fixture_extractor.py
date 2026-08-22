@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+from collections import Counter
 from typing import Any
 
 from tools.rules_library.baseline import SourceSpec
 from tools.rules_library.errors import BuildError
 from tools.rules_library.models import DraftAsset, ExtractedSource
+from tools.rules_library.table_entities import table_row_entities
 
 
 _CATEGORY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -31,6 +33,12 @@ def _string_list(value: object, source: SourceSpec) -> tuple[str, ...]:
     return tuple(dict.fromkeys(value))
 
 
+def _table_cells(value: object, source: SourceSpec) -> tuple[str, ...]:
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise _invalid_fixture(source)
+    return tuple(value)
+
+
 def _render_table(block: dict[str, Any], source: SourceSpec) -> str:
     headers = _string_list(block.get("headers"), source)
     rows = block.get("rows")
@@ -38,7 +46,7 @@ def _render_table(block: dict[str, Any], source: SourceSpec) -> str:
         raise _invalid_fixture(source)
     rendered_rows: list[str] = []
     for row in rows:
-        values = _string_list(row, source)
+        values = _table_cells(row, source)
         if len(values) != len(headers):
             raise _invalid_fixture(source)
         rendered_rows.append("| " + " | ".join(values) + " |")
@@ -97,6 +105,7 @@ def extract_fixture(path: Path, source: SourceSpec) -> ExtractedSource:
     chapter_stack: list[str] = []
     page_labels: list[str] = []
     total_text_characters = 0
+    structure_counts: Counter[str] = Counter()
     expected_page = 1
 
     for raw_page in pages:
@@ -165,8 +174,21 @@ def extract_fixture(path: Path, source: SourceSpec) -> ExtractedSource:
             if current is None:
                 raise _invalid_fixture(source)
             rendered = _render_content_block(raw_block, source)
+            kind = raw_block.get("kind")
+            if kind in {"table", "sidebar", "footnote"}:
+                structure_counts[str(kind)] += 1
             current.append_body(rendered, page_number, page_label)
             total_text_characters += len(rendered)
+            if kind == "table":
+                assets.extend(
+                    table_row_entities(
+                        parent=current,
+                        table_markdown=rendered,
+                        page=page_number,
+                        page_label=page_label,
+                        first_order=len(assets),
+                    )
+                )
 
     if not assets or any(not asset.body_parts for asset in assets):
         raise _invalid_fixture(source)
@@ -177,4 +199,9 @@ def extract_fixture(path: Path, source: SourceSpec) -> ExtractedSource:
         outline_count=0,
         total_text_characters=total_text_characters,
         page_labels=tuple(page_labels),
+        structure_counts={
+            kind: structure_counts[kind]
+            for kind in ("table", "sidebar", "footnote")
+        },
+        parser_versions={"fixture_extractor": "1"},
     )

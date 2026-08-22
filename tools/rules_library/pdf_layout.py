@@ -9,6 +9,8 @@ from typing import Any
 from tools.rules_library.baseline import SourceSpec
 from tools.rules_library.errors import BuildError
 from tools.rules_library.pdf_fonts import replace_cid_placeholders
+from tools.rules_library.pdf_structure import extract_semantic_blocks
+from tools.rules_library.text import lookup_key, normalized_text
 
 
 @dataclass(frozen=True)
@@ -22,6 +24,10 @@ class LayoutLine:
     size: float
     fonts: tuple[str, ...]
     text: str
+    block_kind: str
+    rendered_text: str
+    structure_group: str | None
+    is_colored: bool
 
 
 @dataclass(frozen=True)
@@ -43,54 +49,40 @@ class Marker:
     chapter_path: tuple[str, ...]
     origin: str
     outline_order: int | None = None
+    heading_end_index: int | None = None
 
 
-def load_dependencies(source: SourceSpec) -> tuple[Any, Any]:
-    try:
-        return importlib.import_module("pdfplumber"), importlib.import_module("pypdf")
-    except ModuleNotFoundError as error:
-        raise BuildError(
-            "missing_build_dependency",
-            "PDF 构建需要 rules-build 可选依赖。",
-            source.source_id,
-            source.relative_path,
-        ) from error
+def _color_is_visible(color: object) -> bool:
+    if isinstance(color, (int, float)):
+        return abs(float(color)) > 0.01
+    if isinstance(color, (tuple, list)):
+        return any(
+            isinstance(component, (int, float)) and abs(float(component)) > 0.01
+            for component in color
+        )
+    return False
 
 
-def normalized_text(text: str) -> str:
-    normalized = " ".join(text.replace("\u00a0", " ").split())
-    normalized = re.sub(
-        r"(?<=[\u3400-\u9fff])\s+(?=[\u3400-\u9fff])",
-        "",
-        normalized,
-    )
-    normalized = re.sub(r"\s+([，。；：、？！）》】])", r"\1", normalized)
-    normalized = re.sub(r"([（《【])\s+", r"\1", normalized)
-    return normalized.strip()
+def _adjustment_mapping(source: SourceSpec, key: str) -> dict[str, float]:
+    raw_mapping = source.options.get(key, {})
+    if not isinstance(raw_mapping, dict) or not all(
+        isinstance(font, str)
+        and font
+        and isinstance(adjustment, (int, float))
+        and abs(float(adjustment)) <= 100
+        for font, adjustment in raw_mapping.items()
+    ):
+        raise BuildError("invalid_baseline", "规则基线清单无效。")
+    return {
+        str(font).casefold(): float(adjustment)
+        for font, adjustment in raw_mapping.items()
+    }
 
 
-def lookup_key(text: str) -> str:
-    return re.sub(r"[\W_]+", "", text, flags=re.UNICODE).casefold()
-
-
-def extract_page_lines(
-    page: Any,
-    *,
-    page_number: int,
-    page_label: str,
-    first_index: int,
-    cid_maps: dict[str, dict[int, str]],
-) -> list[LayoutLine]:
-    deduplicated = page.dedupe_chars(
-        tolerance=1,
-        extra_attrs=("fontname", "size"),
-    )
-    words: list[dict[str, Any]] = deduplicated.extract_words(
-        extra_attrs=["size", "fontname"],
-        use_text_flow=False,
-        keep_blank_chars=False,
-    )
-    midpoint = float(page.width) / 2
+def _coordinate_groups(
+    words: list[dict[str, Any]],
+    midpoint: float,
+) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = []
     for word in sorted(
         words,
@@ -120,26 +112,130 @@ def extract_page_lines(
             groups.append(group)
         group["x0"] = min(float(group["x0"]), float(word["x0"]))
         group["words"].append(word)
+    return groups
+
+
+def load_dependencies(source: SourceSpec) -> tuple[Any, Any]:
+    try:
+        return importlib.import_module("pdfplumber"), importlib.import_module("pypdf")
+    except ModuleNotFoundError as error:
+        raise BuildError(
+            "missing_build_dependency",
+            "PDF 构建需要 rules-build 可选依赖。",
+            source.source_id,
+            source.relative_path,
+        ) from error
+
+
+def extract_page_lines(
+    page: Any,
+    *,
+    page_number: int,
+    page_label: str,
+    first_index: int,
+    cid_maps: dict[str, dict[int, str]],
+    font_top_adjustments: dict[str, float] | None = None,
+) -> list[LayoutLine]:
+    deduplicated = page.dedupe_chars(
+        tolerance=1,
+        extra_attrs=("fontname", "size", "non_stroking_color"),
+    )
+    raw_words: list[dict[str, Any]] = deduplicated.extract_words(
+        extra_attrs=["size", "fontname", "non_stroking_color"],
+        use_text_flow=False,
+        keep_blank_chars=False,
+    )
+    words = [dict(word) for word in raw_words]
+    adjustments = font_top_adjustments or {}
+    for word in words:
+        word["_source_top"] = float(word["top"])
+        font_name = str(word["fontname"])
+        adjustment = adjustments.get(
+            font_name.casefold(),
+            0.0,
+        )
+        word["top"] = float(word["top"]) + adjustment
+        word["bottom"] = float(word["bottom"]) + adjustment
+        word["text"] = replace_cid_placeholders(
+            str(word["text"]),
+            str(word["fontname"]),
+            cid_maps,
+        )
+    midpoint = float(page.width) / 2
+    detected_structures = extract_semantic_blocks(page, words)
+    semantic_blocks = detected_structures.blocks
+    assigned = {word_id for block in semantic_blocks for word_id in block.word_ids}
+    semantic_lines = [
+        LayoutLine(
+            index=0,
+            page=page_number,
+            page_label=page_label,
+            column=(
+                2
+                if block.width >= float(page.width) * 0.7
+                else 0
+                if block.x0 < midpoint
+                else 1
+            ),
+            top=block.top,
+            x0=block.x0,
+            size=block.size,
+            fonts=block.fonts,
+            text=block.text,
+            block_kind=block.block_kind,
+            rendered_text=block.rendered_text,
+            structure_group=f"p{page_number}-{block.block_kind}-{index + 1}",
+            is_colored=block.is_colored,
+        )
+        for index, block in enumerate(semantic_blocks)
+    ]
+    words = [word for word in words if id(word) not in assigned]
+    groups = _coordinate_groups(words, midpoint)
 
     lines: list[LayoutLine] = []
     for group in sorted(groups, key=lambda item: (item["column"], item["top"])):
         grouped_words = sorted(group["words"], key=lambda item: float(item["x0"]))
-        decoded_words = [
-            replace_cid_placeholders(
-                str(word["text"]),
-                str(word["fontname"]),
-                cid_maps,
-            )
-            for word in grouped_words
-        ]
-        text = normalized_text(" ".join(decoded_words))
+        text = normalized_text(" ".join(str(word["text"]) for word in grouped_words))
         if not text:
             continue
-        if float(group["top"]) > float(page.height) - 45 and (
-            lookup_key(text) == lookup_key(page_label)
-            or re.fullmatch(r"\d+", text) is not None
+        source_top = min(
+            float(word.get("_source_top", word["top"]))
+            for word in grouped_words
+        )
+        is_page_label = lookup_key(text) == lookup_key(page_label)
+        if (
+            is_page_label and source_top > float(page.height) - 75
+        ) or (
+            re.fullmatch(r"\d+", text) is not None
+            and source_top > float(page.height) - 45
         ):
             continue
+        sidebar_groups = {
+            detected_structures.sidebar_groups[id(word)]
+            for word in grouped_words
+            if id(word) in detected_structures.sidebar_groups
+        }
+        is_sidebar = len(sidebar_groups) == 1 and all(
+            id(word) in detected_structures.sidebar_groups for word in grouped_words
+        )
+        is_footnote = (
+            not is_sidebar
+            and
+            float(group["top"]) >= float(page.height) * 0.72
+            and max(float(word["size"]) for word in grouped_words) <= 7
+            and re.match(r"^(?:\*|†|‡|\d{1,2}[.、)])\s*", text) is not None
+        )
+        block_kind = (
+            "sidebar" if is_sidebar else "footnote" if is_footnote else "paragraph"
+        )
+        rendered_text = (
+            f"> {text}"
+            if is_sidebar
+            else
+            f"[^pdf-p{page_number}-n{1 + sum(line.block_kind == 'footnote' for line in lines)}]: {text}"
+            if is_footnote
+            else text
+        )
         lines.append(
             LayoutLine(
                 index=first_index + len(lines),
@@ -153,9 +249,41 @@ def extract_page_lines(
                     sorted({str(word["fontname"]) for word in grouped_words})
                 ),
                 text=text,
+                block_kind=block_kind,
+                rendered_text=rendered_text,
+                structure_group=(
+                    f"p{page_number}-{next(iter(sidebar_groups))}"
+                    if is_sidebar
+                    else f"p{page_number}-footnote-{len(lines) + 1}"
+                    if is_footnote
+                    else None
+                ),
+                is_colored=any(
+                    _color_is_visible(word.get("non_stroking_color"))
+                    for word in grouped_words
+                ),
             )
         )
-    return lines
+    lines.extend(semantic_lines)
+    lines.sort(key=lambda line: (line.column, line.top, line.x0, line.block_kind))
+    return [
+        LayoutLine(
+            index=first_index + index,
+            page=line.page,
+            page_label=line.page_label,
+            column=line.column,
+            top=line.top,
+            x0=line.x0,
+            size=line.size,
+            fonts=line.fonts,
+            text=line.text,
+            block_kind=line.block_kind,
+            rendered_text=line.rendered_text,
+            structure_group=line.structure_group,
+            is_colored=line.is_colored,
+        )
+        for index, line in enumerate(lines)
+    ]
 
 
 def extract_layout(
@@ -163,7 +291,9 @@ def extract_layout(
     path: Path,
     labels: list[str],
     cid_maps: dict[str, dict[int, str]],
+    source: SourceSpec,
 ) -> tuple[list[LayoutLine], list[float]]:
+    font_top_adjustments = _adjustment_mapping(source, "font_top_adjustments")
     lines: list[LayoutLine] = []
     page_heights: list[float] = []
     with pdfplumber.open(path) as document:
@@ -176,6 +306,7 @@ def extract_layout(
                 page_label=page_label,
                 first_index=len(lines),
                 cid_maps=cid_maps,
+                font_top_adjustments=font_top_adjustments,
             )
             lines.extend(page_lines)
     return lines, page_heights
