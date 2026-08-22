@@ -11,6 +11,7 @@ from tools.rules_library.errors import BuildError
 
 
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+_EXCEPTION_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{2,127}$")
 
 
 @dataclass(frozen=True)
@@ -25,9 +26,24 @@ class SourceSpec:
 
 
 @dataclass(frozen=True)
+class RuleExceptionSpec:
+    exception_id: str
+    specific_rule_alias: str
+    general_rule_alias: str
+    scope: str
+    general_value: str
+    specific_value: str
+    general_evidence: str
+    specific_evidence: str
+    review_status: str
+    review_evidence: str
+
+
+@dataclass(frozen=True)
 class Baseline:
     library_version: str
     sources: tuple[SourceSpec, ...]
+    rule_exceptions: tuple[RuleExceptionSpec, ...]
 
 
 @dataclass(frozen=True)
@@ -51,6 +67,53 @@ def _required_string(mapping: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value:
         raise BuildError("invalid_baseline", "规则基线清单无效。")
     return value
+
+
+def _load_rule_exceptions(loaded: dict[str, Any]) -> tuple[RuleExceptionSpec, ...]:
+    raw_exceptions = loaded.get("rule_exceptions", [])
+    if not isinstance(raw_exceptions, list):
+        raise BuildError("invalid_baseline", "规则基线清单无效。")
+    required_keys = {
+        "id",
+        "specific_rule_alias",
+        "general_rule_alias",
+        "scope",
+        "general_value",
+        "specific_value",
+        "general_evidence",
+        "specific_evidence",
+        "review_status",
+        "review_evidence",
+    }
+    exceptions: list[RuleExceptionSpec] = []
+    seen_ids: set[str] = set()
+    for raw_exception in raw_exceptions:
+        if not isinstance(raw_exception, dict) or set(raw_exception) != required_keys:
+            raise BuildError("invalid_baseline", "规则基线清单无效。")
+        exception_id = _required_string(raw_exception, "id")
+        if (
+            exception_id in seen_ids
+            or not _EXCEPTION_ID_PATTERN.fullmatch(exception_id)
+        ):
+            raise BuildError("invalid_baseline", "规则基线清单无效。")
+        seen_ids.add(exception_id)
+        exceptions.append(
+            RuleExceptionSpec(
+                exception_id=exception_id,
+                specific_rule_alias=_required_string(
+                    raw_exception, "specific_rule_alias"
+                ),
+                general_rule_alias=_required_string(raw_exception, "general_rule_alias"),
+                scope=_required_string(raw_exception, "scope"),
+                general_value=_required_string(raw_exception, "general_value"),
+                specific_value=_required_string(raw_exception, "specific_value"),
+                general_evidence=_required_string(raw_exception, "general_evidence"),
+                specific_evidence=_required_string(raw_exception, "specific_evidence"),
+                review_status=_required_string(raw_exception, "review_status"),
+                review_evidence=_required_string(raw_exception, "review_evidence"),
+            )
+        )
+    return tuple(exceptions)
 
 
 def load_baseline(path: Path) -> Baseline:
@@ -99,6 +162,7 @@ def load_baseline(path: Path) -> Baseline:
     return Baseline(
         library_version=_required_string(loaded, "library_version"),
         sources=tuple(sources),
+        rule_exceptions=_load_rule_exceptions(loaded),
     )
 
 

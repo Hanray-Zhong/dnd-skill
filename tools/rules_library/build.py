@@ -46,7 +46,11 @@ def build_library(
     output_parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=".rules-library-", dir=output_parent))
     try:
-        result = assemble_library(staging, extracted_sources)
+        result = assemble_library(
+            staging,
+            extracted_sources,
+            baseline.rule_exceptions,
+        )
         identity = result["identity"]
         if not isinstance(identity, dict):
             raise AssertionError("构建结果缺少规则库身份")

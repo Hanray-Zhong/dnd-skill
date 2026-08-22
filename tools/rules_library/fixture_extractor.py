@@ -14,6 +14,7 @@ from tools.rules_library.table_entities import table_row_entities
 
 _CATEGORY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 _RULE_STATUSES = {"default", "conditional", "optional", "review"}
+_EXTRACTION_STATUSES = {"verified", "index_only", "review"}
 
 
 def _invalid_fixture(source: SourceSpec) -> BuildError:
@@ -142,7 +143,11 @@ def extract_fixture(path: Path, source: SourceSpec) -> ExtractedSource:
                 ):
                     raise _invalid_fixture(source)
                 rule_status = raw_block.get("rule_status", "default")
-                if rule_status not in _RULE_STATUSES:
+                extraction_status = raw_block.get("extraction_status", "verified")
+                if (
+                    rule_status not in _RULE_STATUSES
+                    or extraction_status not in _EXTRACTION_STATUSES
+                ):
                     raise _invalid_fixture(source)
                 aliases = raw_block.get("aliases", [])
                 references = raw_block.get("references", [])
@@ -165,6 +170,7 @@ def extract_fixture(path: Path, source: SourceSpec) -> ExtractedSource:
                     ),
                     explicit_references=parsed_references,
                     order=len(assets),
+                    extraction_status=str(extraction_status),
                 )
                 current.pages.append(page_number)
                 current.page_labels.append(page_label)
