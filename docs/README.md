@@ -21,3 +21,5 @@
 Issue #2 的首个纵向切片已建立十一项 Skill 目录、`dnd-5e` 统一进程门面、固定战役工作区、根清单和 SQLite 权威状态库边界，并支持安全创建与重新打开空战役。运行方式见仓库根目录的 [README.md](../README.md)。
 
 其余能力仍须从 Issue #1 的验收范围继续实现，并以当前规格、领域术语、ADR 和覆盖矩阵作为完整设计输入；当前切片不代表完整跑团功能已经交付。
+
+[GitHub Issue #4](https://github.com/Hanray-Zhong/dnd-skill/issues/4) 的交付范围是完整构建并查询三宝书 Markdown 规则章节库，不是只处理一份规则样本。具体输入、生成资产、运行时隔离、失败门禁及与 Issue #5、#6、#33 的边界见[来源到行为覆盖矩阵](dnd-5e-source-to-behavior-coverage-matrix.md#issue-4-交付边界)和[开发参考资料边界](reference/README.md#转换与运行时交付)。
