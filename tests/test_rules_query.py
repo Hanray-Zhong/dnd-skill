@@ -184,6 +184,187 @@ class RulesQueryFacadeTests(unittest.TestCase):
             self.assertEqual(2, missing.returncode)
             self.assertEqual("rule_not_found", missing_payload["error"]["code"])
 
+    def test_representative_entities_are_queryable_by_name_and_stable_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            baseline, reference_root = _write_synthetic_baseline(root)
+            fixture = _synthetic_fixture()
+            fixture["pages"][1]["blocks"].extend(
+                [
+                    {
+                        "kind": "heading",
+                        "level": 2,
+                        "title": "暮影兽 Gloambeast",
+                        "category": "monster",
+                        "aliases": ["暮影兽", "Gloambeast"],
+                    },
+                    {"kind": "paragraph", "text": "暮影兽具有可追溯的自有资料板。"},
+                    {
+                        "kind": "heading",
+                        "level": 2,
+                        "title": "星辉棱镜 Starlight Prism",
+                        "category": "magic_item",
+                        "aliases": ["星辉棱镜", "Starlight Prism"],
+                    },
+                    {"kind": "paragraph", "text": "星辉棱镜是一件自有测试物品。"},
+                ]
+            )
+            _rewrite_source_and_hash(baseline, reference_root, fixture)
+            library = root / "library"
+            build = run_rules_builder(
+                "build",
+                "--baseline",
+                str(baseline),
+                "--reference-root",
+                str(reference_root),
+                "--output",
+                str(library),
+            )
+            self.assertEqual(0, build.returncode, msg=build.stderr)
+
+            for alias, category in (
+                ("星光术", "spell"),
+                ("目眩", "condition"),
+                ("暮影兽", "monster"),
+                ("星辉棱镜", "magic_item"),
+            ):
+                with self.subTest(alias=alias):
+                    by_name = run_facade(
+                        "rules-query",
+                        "--library",
+                        str(library),
+                        "--alias",
+                        alias,
+                    )
+                    self.assertEqual(0, by_name.returncode, msg=by_name.stderr)
+                    name_payload = json.loads(by_name.stdout)
+                    entity = name_payload["rules"][0]
+                    self.assertEqual(category, entity["category"])
+                    self.assertEqual("syn", entity["source"]["id"])
+                    self.assertIn("cross_references", entity)
+
+                    by_id = run_facade(
+                        "rules-query",
+                        "--library",
+                        str(library),
+                        "--id",
+                        entity["id"],
+                    )
+                    self.assertEqual(0, by_id.returncode, msg=by_id.stderr)
+                    id_payload = json.loads(by_id.stdout)
+                    self.assertEqual(entity, id_payload["rules"][0])
+
+    def test_specific_entity_exception_overrides_its_general_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            baseline, reference_root = _write_synthetic_baseline(root)
+            fixture = _synthetic_fixture()
+            fixture["pages"][0]["blocks"][2]["references"].append("自有规则")
+            _rewrite_source_and_hash(baseline, reference_root, fixture)
+            library = root / "library"
+            build = run_rules_builder(
+                "build",
+                "--baseline",
+                str(baseline),
+                "--reference-root",
+                str(reference_root),
+                "--output",
+                str(library),
+            )
+            self.assertEqual(0, build.returncode, msg=build.stderr)
+            index = json.loads((library / "index.json").read_text(encoding="utf-8"))
+            general_rule = next(
+                item
+                for item in index["items"]
+                if item["category"] == "semantic_section"
+            )
+            entity = next(
+                item for item in index["items"] if item["category"] == "spell"
+            )
+            self.assertIn(general_rule["id"], entity["cross_references"])
+
+            result = run_facade(
+                "rules-query",
+                "--library",
+                str(library),
+                "--alias",
+                "星光术",
+                "--general-rule-id",
+                general_rule["id"],
+            )
+            payload = json.loads(result.stdout) if result.stdout else None
+            rules = payload.get("rules", []) if isinstance(payload, dict) else []
+            general_rules = (
+                payload.get("general_rules", []) if isinstance(payload, dict) else []
+            )
+
+            self.assertEqual(0, result.returncode, msg=result.stderr)
+            assert isinstance(payload, dict)
+            self.assertEqual(entity["id"], rules[0]["id"])
+            self.assertEqual("spell", rules[0]["category"])
+            self.assertEqual("syn", rules[0]["source"]["id"])
+            self.assertIn(general_rule["id"], rules[0]["cross_references"])
+            self.assertEqual([general_rule["id"]], [rule["id"] for rule in general_rules])
+            self.assertEqual(
+                {
+                    "decision": "specific_entity_overrides_general_rule",
+                    "reason": "三宝书具体实体说明优先于一般默认规则。",
+                    "applied_rule_id": entity["id"],
+                    "overridden_rule_ids": [general_rule["id"]],
+                    "precedence": [
+                        {
+                            "rank": 3,
+                            "kind": "specific_entity",
+                            "rule_id": entity["id"],
+                        },
+                        {
+                            "rank": 5,
+                            "kind": "general_default",
+                            "rule_id": general_rule["id"],
+                        },
+                    ],
+                },
+                payload["resolution"],
+            )
+
+    def test_specific_entity_resolution_rejects_a_missing_rule_reference(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            baseline, reference_root = _write_synthetic_baseline(root)
+            library = root / "library"
+            build = run_rules_builder(
+                "build",
+                "--baseline",
+                str(baseline),
+                "--reference-root",
+                str(reference_root),
+                "--output",
+                str(library),
+            )
+            self.assertEqual(0, build.returncode, msg=build.stderr)
+            index = json.loads((library / "index.json").read_text(encoding="utf-8"))
+            general_rule_id = next(
+                item["id"]
+                for item in index["items"]
+                if item["category"] == "semantic_section"
+            )
+
+            result = run_facade(
+                "rules-query",
+                "--library",
+                str(library),
+                "--alias",
+                "星光术",
+                "--general-rule-id",
+                general_rule_id,
+            )
+            error = json.loads(result.stderr) if result.stderr else None
+
+            self.assertEqual(2, result.returncode)
+            assert isinstance(error, dict)
+            self.assertEqual("rule_scope_mismatch", error["error"]["code"])
+            self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

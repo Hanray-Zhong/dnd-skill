@@ -52,9 +52,15 @@ PYTHONPATH=src python -m dnd_5e rules-query \
 
 PYTHONPATH=src python -m dnd_5e rules-query \
   --library build/rules-library --topic '巢穴动作' --limit 10
+
+PYTHONPATH=src python -m dnd_5e rules-query \
+  --library build/rules-library --alias '火球术' \
+  --general-rule-id dmg-cn-1.1-semantic-section-bc7e083f6ebe
 ```
 
 `--id`、`--alias` 和 `--topic` 必须且只能指定一个。查询先验证规则库身份、内容质量、阻塞清单、叶级覆盖以及正反引用，再只打开命中的 Markdown；无关实体文件不会被读取，命中实体的文件哈希不符则拒绝返回。`review`、未知状态和仅作层级索引的 `index_only` 项不得用于权威查询。成功 JSON 包含规则库版本与哈希、结论 Markdown、适用条件、规则状态、别名、章节路径、页码、来源和交叉引用。
+
+需要裁定实体说明与一般默认规则的冲突时，以 `--id` 或 `--alias` 选择法术、状态、怪物或物品等规则实体，并用 `--general-rule-id` 指定该实体已经引用的一般规则。成功结果在 `rules` 中返回实体的结构化字段、来源和交叉引用，在 `general_rules` 中返回一般规则，并在 `resolution` 中记录所采用实体、被覆盖规则和“具体实体优先于一般默认规则”的顺序。实体名称存在歧义时必须改用稳定标识；实体不完整、一般规则不是已验证默认规则，或二者没有可追溯交叉引用时，命令拒绝权威裁定。
 
 安装本地预览 wheel 后无需 `--library`，运行时会从包内 `dnd_5e/rule_assets/` 定位固定资产。运行时不导入 `tools.rules_library`，不解析 PDF/XLSX，也不要求 `docs/reference/` 存在。
 

@@ -364,3 +364,107 @@ class RulesLibrary:
         if not selected:
             raise FacadeError("rule_not_found", "规则章节库中没有匹配项。")
         return [self._load_asset(item) for item in selected]
+
+    def resolve_specific_exception(
+        self,
+        *,
+        entity_kind: str,
+        entity_value: str,
+        general_rule_id: str,
+    ) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+        if entity_kind not in {"id", "alias"}:
+            raise FacadeError(
+                "invalid_rule_resolution",
+                "具体实体例外只能按稳定标识或名称解析。",
+            )
+        normalized_value = _normalized_lookup(entity_value)
+        authoritative_items = [
+            item for item in self._items if item["extraction_status"] == "verified"
+        ]
+        if entity_kind == "id":
+            entity_matches = [
+                item
+                for item in authoritative_items
+                if item["id"] == entity_value
+                and item["category"] != "semantic_section"
+            ]
+        else:
+            entity_matches = []
+            for item in authoritative_items:
+                aliases = item["aliases"]
+                if not isinstance(aliases, list):
+                    raise _invalid_library()
+                if item["category"] != "semantic_section" and any(
+                    isinstance(alias, str)
+                    and _normalized_lookup(alias) == normalized_value
+                    for alias in aliases
+                ):
+                    entity_matches.append(item)
+        if not entity_matches:
+            raise FacadeError(
+                "rule_entity_not_found",
+                "规则章节库中没有匹配的完整规则实体。",
+            )
+        entity_matches.sort(key=lambda item: str(item["id"]))
+        if len(entity_matches) != 1:
+            raise FacadeError(
+                "ambiguous_rule_entity",
+                "实体名称对应多个规则条目，请改用稳定标识。",
+                {
+                    "candidate_ids": [
+                        str(item["id"]) for item in entity_matches
+                    ]
+                },
+            )
+        entity_item = entity_matches[0]
+        general_matches = [
+            item for item in authoritative_items if item["id"] == general_rule_id
+        ]
+        if not general_matches:
+            raise FacadeError(
+                "general_rule_not_found",
+                "规则章节库中没有匹配的一般规则。",
+            )
+        general_item = general_matches[0]
+        if (
+            general_item["category"] != "semantic_section"
+            or general_item["rule_status"] != "default"
+        ):
+            raise FacadeError(
+                "invalid_general_rule",
+                "具体实体例外只能覆盖一般默认规则。",
+            )
+        references = entity_item["cross_references"]
+        if not isinstance(references, list) or not all(
+            isinstance(reference, str) for reference in references
+        ):
+            raise _invalid_library()
+        if general_rule_id not in references:
+            raise FacadeError(
+                "rule_scope_mismatch",
+                "具体实体与指定一般规则之间没有可追溯关联。",
+            )
+        entity_id = str(entity_item["id"])
+        decision: dict[str, object] = {
+            "decision": "specific_entity_overrides_general_rule",
+            "reason": "三宝书具体实体说明优先于一般默认规则。",
+            "applied_rule_id": entity_id,
+            "overridden_rule_ids": [general_rule_id],
+            "precedence": [
+                {
+                    "rank": 3,
+                    "kind": "specific_entity",
+                    "rule_id": entity_id,
+                },
+                {
+                    "rank": 5,
+                    "kind": "general_default",
+                    "rule_id": general_rule_id,
+                },
+            ],
+        }
+        return (
+            self._load_asset(entity_item),
+            self._load_asset(general_item),
+            decision,
+        )
