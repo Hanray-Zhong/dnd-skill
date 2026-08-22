@@ -51,19 +51,23 @@ Analytics Dashboard 模板任务，不构成其他电子表格任务的通用 sk
 
 1. 读取 Issue 正文、评论、标签和阻塞关系，确认 Issue 仍处于开放状态、需求足以实现且没有未解决的
    blocker。记录当前工作区状态，保留与该 Issue 无关的改动。
-2. 获取最新的 `origin/main`，从该提交创建并切换到 `issue/issue#<id>` 分支，例如 Issue `#42`
-   使用 `issue/issue#42`。如果该分支已经存在，应先核对其归属和状态，再安全地续接，不得创建重复分支
-   或覆盖远端历史。
-3. 按 `/implement` 要求完成实现、TDD 和相关验证。只提交当前 Issue 的文件，提交信息引用 `#<id>`，
+2. 获取最新的 `origin/main`，并为本次 Issue 生成唯一随机 ID。在创建或切换 `issue/issue#<id>` 分支前，
+   必须先以 `origin/main` 为基线，在 `~/.codex/worktrees/{随机id}/` 创建 detached worktree；
+   `{随机id}` 是占位符，必须替换为实际生成且未被占用的随机 ID，不得复用已有 worktree 目录。
+3. 进入新 worktree 后，再创建并切换到 `issue/issue#<id>` 分支，例如 Issue `#42` 使用
+   `issue/issue#42`。如果该分支已经存在，应先核对其归属和状态，再将它安全地检出到新 worktree，
+   不得创建重复分支或覆盖远端历史。禁止在项目原始工作树中创建或切换 Issue 分支；后续实现、测试、
+   提交和推送必须在新 worktree 中完成。
+4. 按 `/implement` 要求完成实现、TDD 和相关验证。只提交当前 Issue 的文件，提交信息引用 `#<id>`，
    然后将该分支推送到 `origin`；禁止直接提交或推送到 `main`。
-4. 创建以 `main` 为 base、以 Issue 分支为 head 的 PR。PR 标题和正文应概括改动与验证结果，并使用
+5. 创建以 `main` 为 base、以 Issue 分支为 head 的 PR。PR 标题和正文应概括改动与验证结果，并使用
    `Closes #<id>` 关联 Issue。
-5. 以 `origin/main` 为固定点运行 `/code-review`，同时审查 Standards 与 Issue 需求；再检查 PR 的最终
+6. 以 `origin/main` 为固定点运行 `/code-review`，同时审查 Standards 与 Issue 需求；再检查 PR 的最终
    diff、CI/checks 和 review 状态。所有阻塞发现必须修复并重新验证、提交和推送；不得通过跳过检查、
    放宽断言或忽略审查意见来换取合并。
-6. 仅在 PR 无未解决的阻塞审查意见且必需 checks 全部通过后，按仓库支持的合并策略将 PR 合并到
+7. 仅在 PR 无未解决的阻塞审查意见且必需 checks 全部通过后，按仓库支持的合并策略将 PR 合并到
    `origin/main`，并删除远端 Issue 分支。合并后读取远端状态，确认 PR 已合并且 `origin/main` 包含该改动。
-7. 在 Issue 中保留原始需求，勾选已完成项，并补充实现摘要、验证结果和 PR 链接。移除
+8. 在 Issue 中保留原始需求，勾选已完成项，并补充实现摘要、验证结果和 PR 链接。移除
    `ready-for-agent`、`ready-for-human`、`needs-triage`、`needs-info` 等不再适用的 triage 标签，
    保留无关的领域标签；如果 Issue 未被 PR 自动关闭，则显式关闭。最后重新读取 Issue，确认正文、标签
    和状态均已更新。
