@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 
 FailurePoint = Literal["after_event", "before_commit", "after_commit"]
 FailureInjector = Callable[[FailurePoint], None]
+AWAITING_SESSION_ZERO = "awaiting_session_zero"
+READY_TO_PLAY = "ready_to_play"
 
 
 @dataclass(frozen=True)
@@ -16,6 +18,7 @@ class CampaignSummary:
     revision: int
     campaign_status: str
     initial_config: dict[str, object]
+    audiences: dict[str, dict[str, object]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -32,6 +35,24 @@ class CampaignConfigUpdate:
     summary: CampaignSummary
     event_id: str
     request: CampaignConfigRequest
+    replayed: bool
+
+
+@dataclass(frozen=True)
+class SessionZeroRequest:
+    expected_revision: int
+    idempotency_key: str
+    configuration: dict[str, object]
+    audiences: dict[str, dict[str, object]]
+    source: str
+    audience_id: str
+
+
+@dataclass(frozen=True)
+class SessionZeroCompletion:
+    summary: CampaignSummary
+    event_id: str
+    request: SessionZeroRequest
     replayed: bool
 
 

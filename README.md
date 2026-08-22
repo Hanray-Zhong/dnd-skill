@@ -1,6 +1,6 @@
 # D&D 5E 跑团 Skill Suite
 
-本仓库正在实现由单一 `dnd-5e` 主持门面协调的十一项本地优先 Skill。当前纵向切片支持创建和重新打开空战役，并在 Session Zero 阶段以原子状态事务修改难度策略；状态请求同时贯通幂等重试、乐观并发、不可变事件、修订号与崩溃恢复语义。
+本仓库正在实现由单一 `dnd-5e` 主持门面协调的十一项本地优先 Skill。当前纵向切片支持创建和重新打开空战役、修改团前难度策略，以及在全员确认后完成 Session Zero；状态请求同时贯通幂等重试、乐观并发、不可变事件、修订号与崩溃恢复语义。
 
 ## 运行要求
 
@@ -20,6 +20,10 @@ PYTHONPATH=src python -m dnd_5e configure /path/to/empty-campaign \
   --expected-revision 1 \
   --idempotency-key session-zero-difficulty-v1 \
   --difficulty challenging
+PYTHONPATH=src python -m dnd_5e session-zero /path/to/empty-campaign \
+  --expected-revision 2 \
+  --idempotency-key complete-session-zero-v1 \
+  --configuration '{"players":[{"player_id":"alice","display_name":"艾莉丝","character_ids":["aria"],"confirmed":true,"preferences":{}}],"safety":{"boundaries":[],"confirmed_by":["alice"]},"pvp_categories":["violence"]}'
 PYTHONPATH=src python -m dnd_5e open /path/to/empty-campaign
 ```
 
@@ -42,6 +46,8 @@ PYTHONPATH=src python -m dnd_5e open /path/to/empty-campaign
 打开入口验证根清单、相对存储路径、兼容组合、必要目录和 SQLite 完整性，并以只读方式恢复战役标识、当前修订和初始配置。只有缺失的空投影目录会自动重建；权威状态缺失或损坏时直接停止。
 
 `configure` 当前只修改一项团前难度策略。调用方必须提供从 `create` 或 `open` 取得的前置修订号，以及能够在重试时复用的幂等键。首次成功会返回新修订和事件标识；相同请求重试返回原事务并标记 `replayed: true`，不会增加修订或事件。过期修订会以 `revision_conflict` 拒绝，并在 `details` 中返回当前修订与配置供重新对账。
+
+`session-zero` 通过同一状态协议一次确认玩家名册、角色控制关系、安全边界、玩家偏好和团前策略。每位玩家可以选择 `player_rolls` 或 `script_rolls`，缺席策略支持 `narrative_exit`、`delegate` 与 `agent_custody`；升级方式支持 `xp` 与 `milestone`，秘密投骰来源支持 `dice_engine` 与 `private_pool`。省略可选策略时，返回结果会显式展开标准难度、经验值推进、玩家自掷、骰子引擎暗骰和叙事离队等默认值；未回答的 PvP 类别按 `forbid` 处理。所有玩家和安全边界均确认、控制关系无冲突后，事务才会写入 `ready_to_play`、初始桌级/玩家级受众和审计事件。重开后会恢复同一配置与受众。
 
 ## 验证
 

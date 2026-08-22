@@ -208,6 +208,44 @@ class OpenValidationFacadeTests(unittest.TestCase):
                 },
             )
 
+    def test_open_accepts_the_legacy_empty_dm_audience_definition(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory) / "campaign"
+            create_result = run_facade("create", str(workspace))
+            self.assertEqual(0, create_result.returncode, msg=create_result.stderr)
+            database = workspace / "state" / "campaign.sqlite3"
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "UPDATE audiences SET definition_json = '{}' WHERE audience_id = 'dm'"
+                )
+
+            result = run_facade("open", str(workspace))
+            payload = json.loads(result.stdout) if result.stdout else None
+
+            self.assertEqual(
+                {
+                    "returncode": 0,
+                    "status": "awaiting_session_zero",
+                    "audiences": {
+                        "dm": {"audience_type": "dm", "members": []},
+                    },
+                },
+                {
+                    "returncode": result.returncode,
+                    "status": (
+                        payload.get("campaign_status")
+                        if isinstance(payload, dict)
+                        else None
+                    ),
+                    "audiences": (
+                        payload.get("audiences")
+                        if isinstance(payload, dict)
+                        else None
+                    ),
+                },
+                msg=result.stderr,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
