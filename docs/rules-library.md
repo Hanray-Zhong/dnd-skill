@@ -1,0 +1,76 @@
+# 规则章节库构建与查询
+
+Issue #4 的内容构建工具链位于 `tools/rules_library/`，它是开发支持组件，不注册为第十二项 Skill，也不会进入本地预览 wheel。生产基线 `core-cn-baseline.json` 固定三本权威译本的相对路径、版本、SHA-256、页数、书签数、完整性下限、实体识别区域、叶级职责路由和来源授权状态。
+
+## 开发构建
+
+将三本固定文件放在 `docs/reference/` 约定的位置后，从仓库根目录执行：
+
+```bash
+uv run --extra rules-build python -m tools.rules_library build \
+  --baseline tools/rules_library/core-cn-baseline.json \
+  --reference-root docs/reference \
+  --output build/rules-library
+```
+
+构建器在解析内容前验证全部权威输入。缺失、路径逃逸或 SHA-256 不匹配都会以退出码 `2` 和结构化错误停止，且不会留下规则库输出。PDF 适配器去除重叠字形层，按双栏顺序重建文本，以书签层级和字体标题共同划分最小主题，并通过施法字段、资料板字段和固定目录区域识别法术、状态、怪物、魔法物品及其他实体。
+
+固定《怪物图鉴》中的少数字体子集缺少 `ToUnicode`。构建器先把同书同字体的字形轮廓与唯一 Unicode 映射匹配，再使用生产基线中按源文件哈希、字体和 CID 固定的人工复核映射；仍有任何 `(cid:…)` 字形时构建直接失败，不以模型常识或辅助纯文字版补写。
+
+输出结构如下：
+
+```text
+<rules-library>/
+├── library.json
+├── index.json
+├── sources.json
+├── coverage.json
+├── blocked.json
+├── sections/*.md
+└── entities/*.md
+```
+
+每个 Markdown 单元与索引项记录稳定 ID、类别、别名、适用条件、规则状态、源书、版本、源文件哈希、章节路径、PDF 页码与页标签、正向和反向交叉引用、提取状态、内容哈希及文件哈希。`sources.json` 还为每个 PDF 物理页记录 `generated` 或经固定基线声明的 `visual_only` 状态；未声明空页或声明失效都会阻止构建。`coverage.json` 为每个单元保存来源矩阵 ID、主责 Skill、协作 Skill、权威状态、可观察结果、失败路径和验收场景。
+
+相同输入、基线和构建器版本会生成相同资产与清单哈希。输入、规范化映射或提取结果变化会改变来源、索引或内容哈希。任何未复核规则、无法恢复字形、缺失实体、断裂引用或覆盖记录缺失都会阻止质量通过。
+
+## 运行时查询
+
+开发目录可以显式指定规则库：
+
+```bash
+PYTHONPATH=src python -m dnd_5e rules-query \
+  --library build/rules-library --id phb-cn-1.72-spell-9a2f341bc43d
+
+PYTHONPATH=src python -m dnd_5e rules-query \
+  --library build/rules-library --alias '火球术'
+
+PYTHONPATH=src python -m dnd_5e rules-query \
+  --library build/rules-library --topic '巢穴动作' --limit 10
+```
+
+`--id`、`--alias` 和 `--topic` 必须且只能指定一个。查询先读取固定清单和索引，再只打开命中的 Markdown；无关实体损坏不会被读取，命中实体的文件哈希不符则拒绝返回。成功 JSON 包含规则库版本与哈希、结论 Markdown、适用条件、规则状态、别名、章节路径、页码、来源和交叉引用。
+
+安装本地预览 wheel 后无需 `--library`，运行时会从包内 `dnd_5e/rule_assets/` 定位固定资产。运行时不导入 `tools.rules_library`，不解析 PDF/XLSX，也不要求 `docs/reference/` 存在。
+
+## 本地预览 wheel
+
+构建完成后执行：
+
+```bash
+PYTHONPATH=src python -m tools.rules_library preview-wheel \
+  --library build/rules-library \
+  --output-directory dist
+```
+
+预览 wheel 包含运行时代码、十一项 Skill manifest、Markdown、索引和来源元数据；不包含开发构建工具、PDF/XLSX、测试、缓存或临时文件。安装后新建战役会把该规则章节库的实际版本与哈希写入 `campaign.json` 的兼容组合。
+
+## 三种状态与公开发布
+
+`library.json` 分别记录：
+
+- `content_quality`：结构、完整性、哈希、引用和覆盖门禁是否通过；
+- `local_preview`：是否可以生成本机预览包；
+- `public_release`：来源授权清单是否允许公开分发。
+
+当前三本来源的授权字段尚未完成复核，因此完整构建应显示 `content_quality: passed`、`local_preview: available` 和 `public_release: blocked`。显式请求公开构建会以 `public_release_blocked` 失败；不得把本地预览 wheel 上传、提交或描述为公开发布物。正式公开门禁继续由 Issue #33 负责。

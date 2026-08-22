@@ -12,6 +12,7 @@ import uuid
 from dnd_5e import __version__
 from dnd_5e.catalog import skill_suite_sha256
 from dnd_5e.errors import FacadeError
+from dnd_5e.rules import installed_library_identity
 from dnd_5e.state.types import (
     CampaignConfigRequest,
     CampaignConfigUpdate,
@@ -85,8 +86,7 @@ def _compatibility_manifest() -> dict[str, dict[str, str]]:
             "sha256": skill_suite_sha256(),
         },
         "rules_library": {
-            "version": "bootstrap-empty-v1",
-            "sha256": _sha256({"semantic_sections": [], "entities": []}),
+            **installed_library_identity(),
         },
         "formula_catalog": {
             "version": "bootstrap-empty-v1",
@@ -335,6 +335,7 @@ def create_campaign(
     workspace: Path,
     initial_config: dict[str, object],
 ) -> CampaignSummary:
+    compatibility = _compatibility_manifest()
     requested_workspace = workspace.expanduser()
     try:
         candidate_workspace = requested_workspace.resolve(strict=False)
@@ -400,7 +401,7 @@ def create_campaign(
                 "engine": "sqlite3",
                 "path": "state/campaign.sqlite3",
             },
-            "compatibility": _compatibility_manifest(),
+            "compatibility": compatibility,
             "extensions": {},
         }
         _write_manifest_last(resolved_workspace, manifest)
