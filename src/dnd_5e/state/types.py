@@ -64,6 +64,29 @@ class SessionZeroCompletion:
     replayed: bool
 
 
+@dataclass(frozen=True)
+class MessageRecordRequest:
+    expected_revision: int
+    idempotency_key: str
+    input_reference: str
+    speaker_id: str
+    character_id: str | None
+    scene_id: str
+    message_type: str
+    raw_text: str
+    content: str
+    source: str
+    audience_id: str
+
+
+@dataclass(frozen=True)
+class MessageRecord:
+    summary: CampaignSummary
+    event_id: str
+    request: MessageRecordRequest
+    replayed: bool
+
+
 class RevisionConflict(Exception):
     def __init__(self, current: CampaignSummary) -> None:
         super().__init__("状态变更请求基于过期修订。")

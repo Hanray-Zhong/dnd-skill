@@ -1,6 +1,6 @@
 # D&D 5E 跑团 Skill Suite
 
-本仓库正在实现由单一 `dnd-5e` 主持门面协调的十一项本地优先 Skill。当前纵向切片支持创建和重新打开空战役、修改团前难度策略、在全员确认后完成 Session Zero，并提供完整三宝书的开发构建与固定 Markdown 规则资产查询。状态请求贯通幂等重试、乐观并发、不可变事件、修订号与崩溃恢复语义；规则查询支持稳定 ID、别名和主题入口。
+本仓库正在实现由单一 `dnd-5e` 主持门面协调的十一项本地优先 Skill。当前纵向切片支持创建和重新打开空战役、修改团前难度策略、在全员确认后完成 Session Zero、分类并记录五类运行期消息，并提供完整三宝书的开发构建与固定 Markdown 规则资产查询。状态请求贯通幂等重试、乐观并发、不可变事件、修订号与崩溃恢复语义；规则查询支持稳定 ID、别名和主题入口。
 
 ## 运行要求
 
@@ -26,6 +26,10 @@ PYTHONPATH=src python -m dnd_5e session-zero /path/to/empty-campaign \
   --expected-revision 2 \
   --idempotency-key complete-session-zero-v1 \
   --configuration '{"players":[{"player_id":"alice","display_name":"艾莉丝","character_ids":["aria"],"confirmed":true,"preferences":{},"roll_policy":"player_rolls","absence_policies":{"aria":{"mode":"narrative_exit"}},"pvp_preferences":{"violence":"forbid"}}],"safety":{"boundaries":[],"confirmed_by":["alice"]},"difficulty":"challenging","advancement":"xp","private_roll_policy":"dice_engine","pvp_categories":["violence"]}'
+PYTHONPATH=src python -m dnd_5e message /path/to/empty-campaign \
+  --speaker alice --character aria --scene scene-entrance \
+  --input-reference message-001 --expected-revision 3 \
+  --text '“我们往北门走。”'
 PYTHONPATH=src python -m dnd_5e open /path/to/empty-campaign
 PYTHONPATH=src python -m dnd_5e rules-query \
   --library build/rules-library --alias '火球术'
@@ -52,6 +56,8 @@ PYTHONPATH=src python -m dnd_5e rules-query \
 `configure` 当前只修改一项团前难度策略。调用方必须提供从 `create` 或 `open` 取得的前置修订号，以及能够在重试时复用的幂等键。首次成功会返回新修订和事件标识；相同请求重试返回原事务并标记 `replayed: true`，不会增加修订或事件。过期修订会以 `revision_conflict` 拒绝，并在 `details` 中返回当前修订与配置供重新对账。
 
 `session-zero` 通过同一状态协议确认玩家名册、角色控制关系、安全边界、玩家偏好和团前策略。每位玩家可以选择 `player_rolls` 或 `script_rolls`；`absence_policies` 按 `character_ids` 中的每个角色分别设置 `narrative_exit`、`delegate` 或 `agent_custody`。升级方式支持 `xp` 与 `milestone`，秘密投骰来源支持 `dice_engine` 与 `private_pool`。省略可选策略时，命令会以 `session_zero_confirmation_required` 返回 `defaulted_fields` 与完整 `resolved_configuration`，显式展示标准难度、经验值推进、玩家自掷、骰子引擎暗骰、逐角色叙事离队及未回答 PvP 类别的 `forbid`；此预览不写状态。只有用展开后的完整配置再次提交、所有玩家和安全边界均确认且控制/代管关系无冲突时，事务才会写入 `ready_to_play`、初始桌级/玩家级受众和审计事件。重开后会恢复同一配置与受众；旧版全局 `roll_policy` 不进入完成后的权威配置。
+
+`message` 只在战役进入 `ready_to_play` 后处理运行期输入。中文双引号、半角星号、`（内心：……）`、`//` 和 `【……】` 分别表示角色对话、角色行动、角色内心、OOC 与系统消息；未标记玩家文本默认按 OOC 处理。角色消息必须同时通过稳定玩家名册与角色控制权校验，`【……】` 只有保留主体 `system` 可以提交，单靠文本不能伪造系统结果。响应固定分为 `scene_narrative`、`table_prompt` 和 `audit_record` 三层：角色行动仅进入待解析桌务项，不会被提前叙述为既成事实；角色内心使用对应玩家私有受众。角色对话、行动、内心和可信系统结果需要前置修订并原子记录，原始输入引用同时作为幂等身份；普通 OOC、歧义输入与拒绝结果不创建事件或新修订。
 
 安装了本地预览规则资产时，新建战役会在兼容组合中固定该规则章节库的版本和内容哈希；没有安装规则资产的源码开发环境仍使用明确的 `bootstrap-empty-v1` 身份。
 

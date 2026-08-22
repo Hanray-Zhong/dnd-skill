@@ -10,6 +10,7 @@ from typing import Any
 from dnd_5e.campaign_start.session_zero import complete_session_zero
 from dnd_5e.catalog import public_skill_catalog
 from dnd_5e.errors import FacadeError
+from dnd_5e.hosting.messages import handle_message
 from dnd_5e.rules import RulesLibrary
 from dnd_5e.state.types import (
     READY_TO_PLAY,
@@ -203,6 +204,26 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="完整且已经全员确认的 Session Zero JSON object",
     )
+    message_parser = subcommands.add_parser(
+        "message",
+        help="校验并处理一条运行期消息",
+    )
+    message_parser.add_argument("workspace", type=Path, help="既有战役工作区")
+    message_parser.add_argument("--speaker", required=True, help="稳定玩家标识")
+    message_parser.add_argument("--character", help="消息所使用的角色稳定标识")
+    message_parser.add_argument("--scene", required=True, help="目标场景稳定标识")
+    message_parser.add_argument(
+        "--input-reference",
+        required=True,
+        help="调用方提供的原始输入稳定引用",
+    )
+    message_parser.add_argument("--text", required=True, help="原始消息正文")
+    message_parser.add_argument(
+        "--expected-revision",
+        type=int,
+        default=None,
+        help="仅需要落盘的消息所依据的当前修订号",
+    )
     rules_query = subcommands.add_parser("rules-query", help="定向查询固定规则章节库")
     rules_query.add_argument("--library", type=Path, default=None)
     query_kind = rules_query.add_mutually_exclusive_group(required=True)
@@ -286,6 +307,21 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 sort_keys=True,
             )
         )
+        return 0
+    if options.command == "message":
+        try:
+            payload = handle_message(
+                options.workspace,
+                speaker_id=options.speaker,
+                character_id=options.character,
+                scene_id=options.scene,
+                input_reference=options.input_reference,
+                text=options.text,
+                expected_revision=options.expected_revision,
+            )
+        except FacadeError as error:
+            return _report_error(error)
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
         return 0
     if options.command == "rules-query":
         query_values = {
